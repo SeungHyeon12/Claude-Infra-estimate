@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "estimate",
-      "source": ".",
+      "source": "./plugins/estimate",
       "description": "Pre-build architecture sizing & cost estimation. /estimate generates an interactive HTML report comparing 2–4 candidate AWS/GCP/Azure architectures."
     }
   ]

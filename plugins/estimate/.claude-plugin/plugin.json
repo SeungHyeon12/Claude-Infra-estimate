@@ -1,6 +1,6 @@
 {
   "name": "capacity-estimator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pre-build architecture sizing for AWS / GCP / Azure. Generates an interactive HTML report comparing 2–4 candidate architectures with p50/p95/p99, monthly cost, and break-point analysis — before you write any code.",
   "author": {
     "name": "seung.hyeonsu"

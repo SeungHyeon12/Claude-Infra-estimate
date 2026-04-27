@@ -3,16 +3,21 @@ name: Validate catalog
 on:
   pull_request:
     paths:
-      - 'catalog/**'
+      - 'plugins/estimate/catalog/**'
+      - 'plugins/estimate/template/**'
       - '.github/workflows/validate.yml'
   push:
     branches: [main]
     paths:
-      - 'catalog/**'
+      - 'plugins/estimate/catalog/**'
+      - 'plugins/estimate/template/**'
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/estimate
     steps:
       - uses: actions/checkout@v4
 

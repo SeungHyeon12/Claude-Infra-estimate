@@ -85,15 +85,18 @@ Stop it with `lsof -ti tcp:11131 | xargs kill`.
 
 ```
 .claude-plugin/
-  plugin.json        # plugin manifest (name, version, metadata)
-  marketplace.json   # one-plugin marketplace listing for /plugin marketplace add
-commands/
-  estimate.md        # the slash command prompt
-catalog/             # JSON service catalogs (AWS, GCP, Azure) + workload patterns
-template/            # base.html — the report template (data-driven, single file)
-docs/                # architecture, catalog format, extension guide
-examples/            # sample invocations
-mockup.html          # static demo, no Claude Code needed
+  marketplace.json         # marketplace listing — points to ./plugins/estimate
+plugins/
+  estimate/                # the actual plugin (canonical Claude Code plugin layout)
+    .claude-plugin/
+      plugin.json          # plugin manifest (name, version, metadata)
+    commands/
+      estimate.md          # the slash command prompt
+    catalog/               # JSON service catalogs (AWS, GCP, Azure) + workload patterns
+    template/              # base.html — the report template (data-driven, single file)
+docs/                      # architecture, catalog format, extension guide
+examples/                  # sample invocations
+mockup.html                # static demo, no Claude Code needed
 ```
 
 ## Accuracy
