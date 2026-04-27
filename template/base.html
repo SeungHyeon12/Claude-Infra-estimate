@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Capacity Estimator</title>
+<!--
+  CAPACITY ESTIMATOR — base template
+  ---------------------------------------------------------------
+  This is a self-contained, single-file HTML report.
+  It is filled in at generation time by the /estimate slash command.
+
+  The slash command replaces ONE placeholder (see <script id="estimate-data"> below).
+
+  All rendering, computation, and interactivity is driven by JS reading
+  window.ESTIMATE_DATA. This file is identical between runs except for
+  that injection point. Keep this template stable so cached assets work.
+  ---------------------------------------------------------------
+-->
+<style>
+  :root {
+    --bg: #0b1020; --panel: #131a30; --panel-2: #1a2342;
+    --border: #2a3458; --text: #e6edf7; --text-dim: #8b96b3;
+    --accent: #60a5fa; --good: #4ade80; --warn: #fbbf24; --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", sans-serif;
+    font-size: 13px; line-height: 1.5;
+  }
+  header {
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  header h1 span.dim { color: var(--text-dim); font-weight: 400; margin-left: 8px; }
+  .workload-selector {
+    display: flex; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px;
+  }
+  .workload-selector button {
+    background: transparent; border: none; color: var(--text-dim);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    font-size: 12px; font-weight: 500;
+  }
+  .workload-selector button.active { background: var(--panel-2); color: var(--text); }
+  main { padding: 24px; max-width: 1600px; margin: 0 auto; }
+
+  .context-banner {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
+    font-size: 12px; color: var(--text-dim);
+  }
+  .context-banner b { color: var(--text); }
+
+  .comparison-summary {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;
+    display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center;
+  }
+  .summary-text { font-size: 13px; }
+  .summary-text b { color: var(--good); }
+
+  .scroll-hint { text-align: right; font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .scroll-hint b { color: var(--accent); }
+
+  .scenarios {
+    display: flex; gap: 18px; overflow-x: auto; overflow-y: visible;
+    padding: 4px 4px 16px; margin: 0 -4px 24px;
+    scroll-snap-type: x proximity;
+    scrollbar-color: var(--border) transparent;
+  }
+  .scenarios::-webkit-scrollbar { height: 10px; }
+  .scenarios::-webkit-scrollbar-track { background: transparent; }
+  .scenarios::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+
+  .scenario {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; position: relative;
+    flex: 0 0 500px; min-width: 500px; scroll-snap-align: start;
+  }
+  .scenario.winner { border-color: var(--good); box-shadow: 0 0 0 1px rgba(74,222,128,0.2); }
+  .scenario-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+  }
+  .scenario-header h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .cloud-badge {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    padding: 3px 8px; border-radius: 4px; text-transform: uppercase;
+  }
+  .cloud-badge.aws { background: #ff9900; color: #000; }
+  .cloud-badge.gcp { background: #4285f4; color: #fff; }
+  .cloud-badge.azure { background: #0078d4; color: #fff; }
+  .cloud-badge.other { background: var(--accent); color: #061021; }
+  .winner-tag {
+    position: absolute; top: -10px; right: 16px;
+    background: var(--good); color: #052e16;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    padding: 3px 8px; border-radius: 4px;
+  }
+
+  .metrics-bar {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px;
+  }
+  .metric {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px;
+  }
+  .metric .label {
+    font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .metric .value { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .metric .sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  .metric.good .value { color: var(--good); }
+  .metric.warn .value { color: var(--warn); }
+  .metric.bad .value { color: var(--bad); }
+
+  .diagram {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 18px; margin-bottom: 14px; overflow-x: auto;
+  }
+  .flow { display: flex; align-items: center; gap: 6px; min-width: max-content; }
+
+  .node {
+    background: var(--panel); border: 2px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; min-width: 120px; cursor: pointer;
+    transition: transform 0.1s, border-color 0.2s; position: relative;
+  }
+  .node:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .node.bottleneck { border-color: var(--bad); box-shadow: 0 0 12px rgba(248,113,113,0.3); }
+  .node .icon-wrap {
+    display: flex; align-items: center; justify-content: center;
+    height: 36px; margin-bottom: 6px;
+  }
+  .node .icon-wrap img {
+    width: 36px; height: 36px; object-fit: contain;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.4));
+  }
+  .node .icon-wrap .icon-fallback { font-size: 22px; line-height: 1; }
+  .node .name { font-size: 11px; font-weight: 600; text-align: center; margin-bottom: 2px; }
+  .node .spec { font-size: 10px; color: var(--text-dim); text-align: center; margin-bottom: 8px; }
+  .util-bar {
+    height: 4px; background: rgba(255,255,255,0.08);
+    border-radius: 2px; overflow: hidden; margin-bottom: 4px;
+  }
+  .util-fill { height: 100%; transition: width 0.2s, background 0.2s; }
+  .util-fill.good { background: var(--good); }
+  .util-fill.warn { background: var(--warn); }
+  .util-fill.bad { background: var(--bad); }
+  .node .util-text { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+  .node .scale-hint {
+    display: none; margin-top: 4px; font-size: 10px; font-weight: 700;
+    color: var(--warn); background: rgba(251,191,36,0.12);
+    border: 1px solid rgba(251,191,36,0.35); border-radius: 4px;
+    padding: 1px 4px; text-align: center; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+  .node .scale-hint.bad {
+    color: var(--bad); background: rgba(248,113,113,0.12);
+    border-color: rgba(248,113,113,0.4);
+  }
+  .node .scale-hint.auto {
+    color: var(--accent); background: rgba(96,165,250,0.12);
+    border-color: rgba(96,165,250,0.35);
+  }
+  .node.saturated .scale-hint { display: block; }
+
+  .rank-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 4px; margin-right: 8px;
+    background: var(--panel-2); color: var(--text-dim);
+    font-variant-numeric: tabular-nums; vertical-align: middle;
+    transition: background 0.2s, color 0.2s;
+  }
+  .rank-chip.rank-1 { background: var(--good); color: #052e16; }
+  .rank-chip.rank-2 { background: var(--accent); color: #061021; }
+  .rank-chip.rank-3 { background: var(--warn); color: #1f1300; }
+  .rank-chip.rank-4 { background: var(--bad);  color: #2a0a0a; }
+
+  .banner .scale-action {
+    display: inline-block; margin-top: 6px; padding: 3px 8px;
+    background: rgba(255,255,255,0.06); border-radius: 4px;
+    font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
+  }
+
+  .arrow { color: var(--text-dim); font-size: 16px; font-weight: 300; user-select: none; }
+  .fork { display: flex; flex-direction: column; gap: 6px; }
+  .fork-line { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-dim); }
+  .fork-line .pct {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px; font-variant-numeric: tabular-nums;
+  }
+
+  .banner {
+    border-radius: 8px; padding: 10px 12px; font-size: 12px;
+    margin-bottom: 8px; display: flex; align-items: flex-start; gap: 8px;
+  }
+  .banner.warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); color: var(--warn); }
+  .banner.bad  { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); color: var(--bad); }
+  .banner.good { background: rgba(74,222,128,0.08);  border: 1px solid rgba(74,222,128,0.3);  color: var(--good); }
+  .banner .icon { flex-shrink: 0; }
+
+  .recommendations {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; font-size: 12px; margin-top: 8px;
+  }
+  .recommendations .title { font-weight: 600; margin-bottom: 6px; color: var(--accent); }
+  .recommendations ul { margin: 0; padding-left: 18px; color: var(--text-dim); }
+  .recommendations li { margin-bottom: 3px; }
+  .recommendations li b { color: var(--text); font-weight: 500; }
+
+  .side-services { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .side-services .side-label {
+    font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 6px;
+  }
+  .side-icons { display: flex; gap: 6px; flex-wrap: wrap; }
+  .side-icon {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 8px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 11px; color: var(--text-dim); cursor: help;
+  }
+  .side-icon img { width: 14px; height: 14px; object-fit: contain; }
+
+  details.detail-panel {
+    margin-top: 14px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 0;
+  }
+  details.detail-panel summary {
+    padding: 10px 14px; cursor: pointer;
+    font-size: 12px; font-weight: 500; color: var(--text-dim); list-style: none;
+  }
+  details.detail-panel summary::-webkit-details-marker { display: none; }
+  details.detail-panel summary::before { content: "▸ "; transition: transform 0.2s; display: inline-block; }
+  details[open].detail-panel summary::before { transform: rotate(90deg); }
+  .detail-content { padding: 0 14px 14px; font-size: 12px; }
+  .detail-content table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .detail-content th, .detail-content td {
+    text-align: left; padding: 6px 8px;
+    border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .detail-content th {
+    color: var(--text-dim); font-weight: 500; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .detail-content td.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .cmp-section {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 24px;
+  }
+  .cmp-section h3 {
+    margin: 0 0 12px; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cmp-section h3 .hint { font-size: 11px; font-weight: 400; color: var(--text-dim); }
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .cmp-table th, .cmp-table td {
+    text-align: left; padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cmp-table th {
+    color: var(--text-dim); font-weight: 500; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .cmp-table th[data-sort]:hover { color: var(--accent); }
+  .cmp-table th.sorted { color: var(--accent); }
+  .cmp-table th.sorted::after { content: ' ▼'; font-size: 9px; }
+  .cmp-table th.sorted.asc::after { content: ' ▲'; }
+  .cmp-table td.num, .cmp-table th.num { text-align: right; }
+  .cmp-table td.num { font-variant-numeric: tabular-nums; }
+  .cmp-table tr.win td { background: rgba(74,222,128,0.05); }
+  .cmp-table .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  }
+  .cmp-table .pill.aws { background: #ff9900; color: #000; }
+  .cmp-table .pill.gcp { background: #4285f4; color: #fff; }
+  .cmp-table .pill.azure { background: #0078d4; color: #fff; }
+  .cmp-table .pill.other { background: var(--accent); color: #061021; }
+
+  .controls {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px;
+    display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 24px; align-items: center;
+    position: sticky; bottom: 24px; margin-bottom: 24px;
+  }
+  .control label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;
+  }
+  .control label b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .control-actions { display: flex; gap: 8px; }
+  .btn {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; font-size: 12px; font-weight: 500;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #061021; border-color: var(--accent); }
+
+  .control[data-workload-only] { display: none; }
+  body[data-workload="rest"] .control[data-workload-only="rest"] { display: block; }
+  body[data-workload="ws"] .control[data-workload-only="ws"] { display: block; }
+  body[data-workload="stream"] .control[data-workload-only="stream"] { display: block; }
+
+  footer { padding: 24px; text-align: center; color: var(--text-dim); font-size: 11px; border-top: 1px solid var(--border); }
+  .badge {
+    display: inline-block; background: rgba(96,165,250,0.1); color: var(--accent);
+    border: 1px solid rgba(96,165,250,0.3); padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    margin-left: 8px; vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Capacity Estimator <span class="dim" id="contextTitle">— pre-build sizing</span><span class="badge">/estimate</span></h1>
+  <div class="workload-selector">
+    <button data-workload="rest">REST API</button>
+    <button data-workload="ws">WebSocket</button>
+    <button data-workload="stream">Streaming</button>
+  </div>
+</header>
+
+<main>
+  <div class="context-banner" id="contextBanner"></div>
+  <div class="comparison-summary">
+    <div class="summary-text" id="summaryText">…</div>
+    <div class="control-actions">
+      <button class="btn" id="copyShareBtn">🔗 Copy share URL</button>
+    </div>
+  </div>
+
+  <div class="scroll-hint">→ <b>Scroll horizontally</b> to compare scenarios</div>
+  <div class="scenarios" id="scenariosContainer"></div>
+
+  <div class="cmp-section">
+    <h3>
+      <span>📊 Sortable comparison</span>
+      <span class="hint">Click column header to sort</span>
+    </h3>
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th data-sort="name">Scenario</th>
+          <th>Cloud</th>
+          <th data-sort="p50" class="num">p50 (ms)</th>
+          <th data-sort="p95" class="num">p95 (ms)</th>
+          <th data-sort="p99" class="num">p99 (ms)</th>
+          <th data-sort="cost" class="num">Cost ($/mo)</th>
+          <th data-sort="break" class="num">Breaks at</th>
+          <th>Bottleneck</th>
+        </tr>
+      </thead>
+      <tbody id="cmpTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="controls">
+    <div class="control" data-workload-only="rest">
+      <label><span id="restLabelText">Target RPS</span> <b id="restLabel">5,000</b></label>
+      <input type="range" id="restInput" min="100" max="50000" step="100" value="5000">
+    </div>
+    <div class="control" data-workload-only="ws">
+      <label>Concurrent connections <b id="wsLabel">50,000</b></label>
+      <input type="range" id="wsInput" min="1000" max="500000" step="1000" value="50000">
+    </div>
+    <div class="control" data-workload-only="ws">
+      <label>Msg / sec / conn <b id="msgRateLabel">1.0</b></label>
+      <input type="range" id="msgRateInput" min="1" max="500" step="1" value="10">
+    </div>
+    <div class="control" data-workload-only="ws">
+      <label>Fan-out (1 msg → N delivered) <b id="fanoutLabel">1</b></label>
+      <input type="range" id="fanoutInput" min="1" max="500" step="1" value="1">
+    </div>
+    <div class="control" data-workload-only="stream">
+      <label>Throughput <b id="streamLabel">200 MB/s</b></label>
+      <input type="range" id="streamInput" min="10" max="2000" step="10" value="200">
+    </div>
+    <div class="control">
+      <label>Cache hit rate <b id="hitLabel">80%</b></label>
+      <input type="range" id="hit" min="0" max="99" step="1" value="80">
+    </div>
+    <div class="control">
+      <label>Burst multiplier <b id="burstLabel">1.0×</b></label>
+      <input type="range" id="burst" min="10" max="50" step="1" value="10">
+    </div>
+    <div class="control-actions">
+      <button class="btn primary" id="autoBreak">⚡ Auto-find break point</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Generated by <b>capacity-estimator</b> — values are rough back-of-envelope estimates (±50%).
+  See <a href="https://github.com/&lt;owner&gt;/capacity-estimator" style="color:var(--accent)">repo</a> for catalog & methodology.
+</footer>
+
+<!--
+  ========== DATA INJECTION POINT ==========
+  The /estimate slash command replaces the placeholder below with a JSON object.
+  See docs/CATALOG.md for the data schema.
+-->
+<script id="estimate-data">
+window.ESTIMATE_DATA = {{ESTIMATE_DATA_JSON}};
+</script>
+
+<script>
+// =====================================================================
+// CAPACITY ESTIMATOR — runtime
+// Reads window.ESTIMATE_DATA, renders scenarios, computes metrics live.
+// =====================================================================
+
+const D = window.ESTIMATE_DATA;
+const SIDS = Object.keys(D.scenarios);
+let currentWorkload = D.meta.workload || 'rest';
+let sortKey = 'cost', sortAsc = true;
+
+const WORKLOADS = {
+  rest:   { label: 'Target RPS',                inputId: 'restInput',   labelId: 'restLabel',   unit: ' RPS' },
+  ws:     { label: 'Concurrent connections',    inputId: 'wsInput',     labelId: 'wsLabel',     unit: '' },
+  stream: { label: 'Throughput',                inputId: 'streamInput', labelId: 'streamLabel', unit: ' MB/s' },
+};
+
+function getCurrentLoad() { return +document.getElementById(WORKLOADS[currentWorkload].inputId).value; }
+function fmtLoad(v) { return currentWorkload === 'stream' ? v + ' MB/s' : v.toLocaleString(); }
+function fmtNum(n) {
+  if (!isFinite(n)) return '∞';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'k';
+  return Math.round(n).toString();
+}
+function fmtCost(c) { return c >= 1000 ? '$' + (c/1000).toFixed(1) + 'k' : '$' + Math.round(c); }
+function unitForBreak() { return currentWorkload === 'stream' ? ' MB/s' : currentWorkload === 'ws' ? ' conn' : ' RPS'; }
+function utilColor(u) { return u < 0.5 ? 'good' : u < 0.8 ? 'warn' : 'bad'; }
+
+// ---------- COMPUTE ----------
+function compute(sid, load, hit, burst, workload, msgRate, fanout) {
+  const sc = D.scenarios[sid];
+  const eff = load * burst;
+  const isWS = workload === 'ws';
+  // Downstream amplification factor for chat-style WS workloads:
+  //   1 connection × msgRate msg/s × fanout deliveries → load on cache/DB
+  const amp = (isWS && msgRate != null && fanout != null) ? (msgRate * fanout) : 1;
+  const out = {};
+
+  // Pass 1: compute raw util, decide auto-scale, then re-derive util/factor at scaled capacity
+  for (const c of sc.flow) {
+    // Two regimes for WS:
+    //   - upstream (LB, sticky compute): rated against cap.ws (memory/FD per conn)
+    //   - downstream (cache/DB) marked with `downstreamMsg: true`: rated against cap.rest
+    //     (msg-per-sec throughput) and load is multiplied by msgRate × fanout.
+    const downstream = isWS && !!c.downstreamMsg;
+    let l = downstream ? eff * amp : eff;
+    if (c.splitHit)  l *= hit;
+    if (c.splitMiss) l *= (1 - hit);
+    const baseCap = downstream ? (c.cap.rest != null ? c.cap.rest : c.cap[workload]) : c.cap[workload];
+    const capUnbounded = (baseCap === Infinity || baseCap === 0 || baseCap == null);
+    const rawUtil = capUnbounded ? 0 : l / baseCap;
+
+    // Decide scale factor: bring util back to ~60% safe zone.
+    // autoScaled = true means we actually multiply capacity & cost (fixed-cost components).
+    // For costFn-only (usage-billed) components we only emit a recommendation — quota, not hardware.
+    let scaleN = 1, extraCostMo = null, autoScaled = false;
+    if (!capUnbounded && rawUtil > 0.85) {
+      scaleN = Math.max(2, Math.ceil(rawUtil / 0.6));
+      if (typeof c.costMo === 'number') {
+        extraCostMo = c.costMo * (scaleN - 1);
+        autoScaled = true;
+      }
+    }
+
+    const effectiveCap = (autoScaled && !capUnbounded) ? baseCap * scaleN : baseCap;
+    const util = capUnbounded ? 0 : l / effectiveCap;
+    const factor = util > 0.7 ? Math.min(1 / Math.max(1 - util, 0.05), 12) : 1;
+
+    // Hard-cap check (typically WS connection ceiling on DBs / Redis maxclients / kernel FD)
+    let hardcapBreached = false, hardcapValue = null, hardcapRemediation = null;
+    if (c.limits && typeof c.limits.max_connections === 'number' && isWS) {
+      const scales = c.limits.scales_with_instances === true;
+      const wallCap = scales ? c.limits.max_connections * scaleN : c.limits.max_connections;
+      // Compare against raw connection count (eff) — this is "how many WS clients exist",
+      // not the post-amplification message rate. The wall is about *concurrent connections*,
+      // which is what max_connections / FD limits actually constrain.
+      if (eff > wallCap) {
+        hardcapBreached = true;
+        hardcapValue = wallCap;
+        hardcapRemediation = c.limits.remediation || 'Hard limit exceeded — cannot bypass with horizontal scaling alone.';
+      }
+    }
+
+    out[c.id] = {
+      ...c, load: l,
+      rawUtil, util,
+      scaleN, extraCostMo, autoScaled,
+      p50Eff: c.p50 * factor, p95Eff: c.p95 * factor,
+      capUnbounded, effectiveCap,
+      downstream, amp,
+      hardcapBreached, hardcapValue, hardcapRemediation
+    };
+  }
+
+  // Bottleneck = max POST-scale util (whatever is still the hottest after auto-scaling)
+  let bottleneckId = null, bottleneckUtil = 0;
+  for (const c of Object.values(out)) {
+    if (c.util > bottleneckUtil) { bottleneckUtil = c.util; bottleneckId = c.id; }
+  }
+
+  let p50 = 0, p95 = 0;
+  for (const c of Object.values(out)) {
+    let w = 1;
+    if (c.splitHit)  w = hit;
+    if (c.splitMiss) w = 1 - hit;
+    p50 += c.p50Eff * w;
+    p95 += c.p95Eff * w;
+  }
+  const p99 = p95 * (bottleneckUtil < 0.5 ? 1.8 : bottleneckUtil < 0.85 ? 2.3 : 4.0);
+
+  // breakLoad uses effectiveCap so the post-scale architecture's break point is reported
+  let breakLoad = Infinity;
+  for (const c of Object.values(out)) {
+    if (c.capUnbounded) continue;
+    let weight = 1;
+    if (c.splitHit)  weight = hit || 0.01;
+    if (c.splitMiss) weight = (1 - hit) || 0.01;
+    const r = (c.effectiveCap * 0.95) / weight;
+    if (r < breakLoad) breakLoad = r;
+  }
+
+  // totalCost = base cost (usage-billed evaluated at current load) + auto-scale extras
+  const totalCost = sc.flow.reduce((s, c) => {
+    const cd = out[c.id];
+    let base = 0;
+    if (c.costFn) {
+      const fn = new Function('load', 'workload', 'return ' + c.costFn);
+      base = fn(load, workload);
+    } else if (c.costFnPerWorkload) {
+      const fn = c.costFnPerWorkload[workload];
+      if (typeof fn === 'number') base = fn * load;
+      else if (typeof fn === 'string') base = new Function('load', 'return ' + fn)(load);
+    } else {
+      base = c.costMo || 0;
+    }
+    return s + base + (cd.extraCostMo || 0);
+  }, 0) + (sc.fixedExtraCostMo || 7);
+
+  return { breakdown: out, p50, p95, p99, breakLoad, totalCost, bottleneckId };
+}
+
+// ---------- RENDER SCENARIOS (DOM build) ----------
+function buildScenarioCard(sid, sc) {
+  const section = document.createElement('section');
+  section.className = 'scenario';
+  section.dataset.id = sid;
+
+  const cloud = sc.cloud || 'other';
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'scenario-header';
+  header.innerHTML = `
+    <h2><span class="rank-chip" id="${sid}-rank" title="Live rank by capacity-per-$">—</span>Scenario ${sid} — ${sc.label}</h2>
+    <span class="cloud-badge ${cloud}">${cloud.toUpperCase()}</span>
+  `;
+  section.appendChild(header);
+
+  // Metrics bar (filled in render())
+  const metricsBar = document.createElement('div');
+  metricsBar.className = 'metrics-bar';
+  metricsBar.innerHTML = `
+    <div class="metric"><div class="label">p50</div><div class="value" id="${sid}-p50">—</div></div>
+    <div class="metric"><div class="label">p95</div><div class="value" id="${sid}-p95">—</div></div>
+    <div class="metric"><div class="label">p99</div><div class="value" id="${sid}-p99">—</div></div>
+    <div class="metric"><div class="label">Cost</div><div class="value" id="${sid}-cost">—</div><div class="sub">/mo</div></div>
+    <div class="metric"><div class="label">Breaks at</div><div class="value" id="${sid}-break">—</div></div>
+  `;
+  section.appendChild(metricsBar);
+
+  // Diagram — flow with optional fork
+  const diagram = document.createElement('div');
+  diagram.className = 'diagram';
+  const flow = document.createElement('div');
+  flow.className = 'flow';
+  flow.id = `${sid}-flow`;
+
+  const linear = sc.flow.filter(c => !c.splitHit && !c.splitMiss);
+  const forked = sc.flow.filter(c => c.splitHit || c.splitMiss);
+
+  linear.forEach((c, i) => {
+    if (i > 0) flow.appendChild(arrow());
+    flow.appendChild(buildNode(c));
+  });
+
+  if (forked.length > 0) {
+    flow.appendChild(arrow());
+    const fork = document.createElement('div');
+    fork.className = 'fork';
+    forked.forEach(c => {
+      const line = document.createElement('div');
+      line.className = 'fork-line';
+      const pct = document.createElement('span');
+      pct.className = 'pct';
+      pct.textContent = c.splitHit ? '80%' : '20%';
+      pct.dataset.role = c.splitHit ? 'hit' : 'miss';
+      line.appendChild(pct);
+      line.appendChild(arrow());
+      line.appendChild(buildNode(c));
+      fork.appendChild(line);
+    });
+    flow.appendChild(fork);
+  }
+
+  diagram.appendChild(flow);
+  section.appendChild(diagram);
+
+  // Banners (filled at render time based on bottleneck)
+  const bannersDiv = document.createElement('div');
+  bannersDiv.id = `${sid}-banners`;
+  section.appendChild(bannersDiv);
+
+  // Recommendations
+  if (sc.recommendations && sc.recommendations.length > 0) {
+    const rec = document.createElement('div');
+    rec.className = 'recommendations';
+    rec.innerHTML = `<div class="title">💡 Recommendations</div><ul>` +
+      sc.recommendations.map(r => `<li>${r}</li>`).join('') + `</ul>`;
+    section.appendChild(rec);
+  }
+
+  // Side services
+  if (sc.sideServices && sc.sideServices.length > 0) {
+    const side = document.createElement('div');
+    side.className = 'side-services';
+    side.innerHTML = `
+      <div class="side-label">Side services</div>
+      <div class="side-icons">${sc.sideServices.map(s => `
+        <div class="side-icon" title="${escapeAttr(s.tooltip || s.name)}">
+          <img src="https://api.iconify.design/${s.icon || 'logos:cloud'}.svg" alt=""
+               onerror="this.style.display='none'">
+          <span>${escapeHtml(s.name)}</span>
+        </div>
+      `).join('')}</div>
+    `;
+    section.appendChild(side);
+  }
+
+  // Detail table
+  const detailPanel = document.createElement('details');
+  detailPanel.className = 'detail-panel';
+  detailPanel.innerHTML = `
+    <summary>Per-component breakdown</summary>
+    <div class="detail-content"><table><thead>
+      <tr><th>Component</th><th>Spec</th><th class="num">Capacity</th>
+          <th class="num">Util</th><th class="num">p50</th><th class="num">p95</th></tr>
+    </thead><tbody id="${sid}-detail"></tbody></table></div>
+  `;
+  section.appendChild(detailPanel);
+
+  return section;
+}
+
+function buildNode(c) {
+  const node = document.createElement('div');
+  node.className = 'node';
+  node.dataset.comp = c.id;
+  node.innerHTML = `
+    <div class="icon-wrap">
+      <img src="https://api.iconify.design/${c.icon || 'logos:cloud'}.svg" alt=""
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span class="icon-fallback" style="display:none">${c.iconFallback || '☁'}</span>
+    </div>
+    <div class="name">${escapeHtml(c.name)}</div>
+    <div class="spec">${escapeHtml(c.spec || '')}</div>
+    <div class="util-bar"><div class="util-fill good" style="width:0%"></div></div>
+    <div class="util-text">—</div>
+    <div class="scale-hint" title="Suggested scale factor to bring util back to ~60%">×1</div>
+  `;
+  return node;
+}
+
+function arrow() {
+  const a = document.createElement('span');
+  a.className = 'arrow';
+  a.textContent = '→';
+  return a;
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function escapeAttr(s) { return escapeHtml(s); }
+
+// ---------- RENDER (live update) ----------
+function render() {
+  const load = getCurrentLoad();
+  const hit = +document.getElementById('hit').value / 100;
+  const burst = +document.getElementById('burst').value / 10;
+  const msgRate = +document.getElementById('msgRateInput').value / 10;   // 0.1 step
+  const fanout  = +document.getElementById('fanoutInput').value;
+
+  document.getElementById(WORKLOADS[currentWorkload].labelId).textContent = fmtLoad(load);
+  document.getElementById('hitLabel').textContent = (hit*100).toFixed(0) + '%';
+  document.getElementById('burstLabel').textContent = burst.toFixed(1) + '×';
+  document.getElementById('msgRateLabel').textContent = msgRate.toFixed(1);
+  document.getElementById('fanoutLabel').textContent = fanout.toString();
+
+  const results = {};
+  for (const sid of SIDS) {
+    const r = compute(sid, load, hit, burst, currentWorkload, msgRate, fanout);
+    results[sid] = r;
+    document.getElementById(sid + '-p50').textContent = r.p50.toFixed(0) + 'ms';
+    document.getElementById(sid + '-p95').textContent = r.p95.toFixed(0) + 'ms';
+    document.getElementById(sid + '-p99').textContent = r.p99.toFixed(0) + 'ms';
+    document.getElementById(sid + '-cost').textContent = fmtCost(r.totalCost);
+    document.getElementById(sid + '-break').textContent = fmtNum(r.breakLoad);
+
+    const flow = document.getElementById(sid + '-flow');
+    flow.querySelectorAll('.node').forEach(node => {
+      const c = r.breakdown[node.dataset.comp];
+      if (!c) return;
+      const fill = node.querySelector('.util-fill');
+      const utext = node.querySelector('.util-text');
+      const hint  = node.querySelector('.scale-hint');
+      // util displayed = POST-scale (the relieved state once auto-scale applied)
+      const u = Math.min(c.util, 1);
+      fill.style.width = (u * 100).toFixed(0) + '%';
+      fill.className = 'util-fill ' + utilColor(c.util);
+      utext.textContent = (c.util * 100).toFixed(0) + '% · ' + c.p50Eff.toFixed(1) + 'ms';
+      node.classList.toggle('bottleneck', node.dataset.comp === r.bottleneckId && c.util > 0.7);
+      // ×N badge: shown when this component had to scale
+      if (hint) {
+        const showHint = c.scaleN > 1;
+        node.classList.toggle('saturated', showHint);
+        hint.classList.remove('bad', 'auto');
+        if (showHint) {
+          hint.textContent = '×' + c.scaleN + (c.autoScaled ? '' : '?');
+          if (c.rawUtil > 1.5) hint.classList.add('bad');
+          else if (c.autoScaled) hint.classList.add('auto');
+          const note = c.autoScaled
+            ? `auto-scaled ×${c.scaleN}: cap ${fmtNum(c.cap[currentWorkload])} → ${fmtNum(c.effectiveCap)}, util ${(c.rawUtil*100).toFixed(0)}% → ${(c.util*100).toFixed(0)}%`
+            : `quota-bound: needs ×${c.scaleN}, raw util ${(c.rawUtil*100).toFixed(0)}% (request increase)`;
+          hint.title = note + (c.extraCostMo != null ? ` (+${fmtCost(c.extraCostMo)}/mo)` : '');
+        }
+      }
+    });
+
+    // banners
+    const banners = document.getElementById(sid + '-banners');
+    banners.innerHTML = '';
+
+    // (0) Hard-limit breaches — wall that horizontal scaling can't bypass.
+    //    Show first because it overrides everything: no amount of ×N fixes max_connections / kernel FDs.
+    const hardcapped = Object.values(r.breakdown).filter(c => c.hardcapBreached);
+    if (hardcapped.length > 0) {
+      const div = document.createElement('div');
+      div.className = 'banner bad';
+      const items = hardcapped.map(c =>
+        `<li><b>${escapeHtml(c.name)}</b> at ${fmtNum(c.load)} (max ${fmtNum(c.hardcapValue)}). ${escapeHtml(c.hardcapRemediation || '')}</li>`
+      ).join('');
+      div.innerHTML = `<span class="icon">🚧</span><div><b>Hard limit breached — horizontal scale-out won't help:</b><ul style="margin:4px 0 0;padding-left:18px">${items}</ul></div>`;
+      banners.appendChild(div);
+    }
+
+    // (a) Auto-scale summary — list components that grew capacity to meet load
+    const scaledComps = Object.values(r.breakdown).filter(c => c.scaleN > 1);
+    if (scaledComps.length > 0) {
+      const overloaded = scaledComps.some(c => c.rawUtil > 1.5);
+      const div = document.createElement('div');
+      div.className = 'banner ' + (overloaded ? 'bad' : 'warn');
+      const totalExtra = scaledComps.reduce((s, c) => s + (c.extraCostMo || 0), 0);
+      const parts = scaledComps.map(c =>
+        c.autoScaled
+          ? `<b>${escapeHtml(c.name)}</b> ×${c.scaleN}`
+          : `<b>${escapeHtml(c.name)}</b> needs ×${c.scaleN} <i>(quota)</i>`
+      );
+      let msg = `<span class="icon">${overloaded ? '🔥' : '⚙'}</span><div><b>Auto-scaled to handle load:</b> ${parts.join(', ')}.`;
+      if (totalExtra > 0) msg += ` <span class="scale-action">+${fmtCost(totalExtra)}/mo extra</span>`;
+      msg += '</div>';
+      div.innerHTML = msg;
+      banners.appendChild(div);
+    }
+
+    // (b) Remaining bottleneck — only flag when even after scaling something is still hot,
+    // or when capacity wasn't auto-scaleable (usage-billed quota)
+    const b = r.breakdown[r.bottleneckId];
+    if (b && b.util > 0.7) {
+      const div = document.createElement('div');
+      div.className = 'banner ' + (b.util > 0.9 ? 'bad' : 'warn');
+      const verb = b.util > 1 ? 'OVERLOADED' : 'Saturating';
+      const label = scaledComps.length > 0 ? 'Remaining bottleneck' : verb;
+      let msg = `<span class="icon">⚠</span><div><b>${label}: ${escapeHtml(b.name)}</b> at <b>${(b.util*100).toFixed(0)}%</b> util — breaks at <b>${fmtNum(r.breakLoad)}${unitForBreak()}</b>.`;
+      if (b.scaleN > 1 && !b.autoScaled) {
+        msg += `<div class="scale-action">→ Quota-bound: request <b>×${b.scaleN}</b> increase</div>`;
+      }
+      msg += '</div>';
+      div.innerHTML = msg;
+      banners.appendChild(div);
+    }
+
+    // detail — capacity column shows effective (post-scale) cap, with ×N suffix when scaled
+    const tbody = document.getElementById(sid + '-detail');
+    tbody.innerHTML = Object.values(r.breakdown).map(c => {
+      const baseCap = c.cap[currentWorkload];
+      const capCell = c.capUnbounded
+        ? '∞'
+        : (c.scaleN > 1 && c.autoScaled
+            ? `${fmtNum(c.effectiveCap)} <span style="color:var(--accent)">(×${c.scaleN})</span>`
+            : fmtNum(baseCap));
+      return `
+        <tr>
+          <td>${escapeHtml(c.name)}</td>
+          <td>${escapeHtml(c.spec || '')}</td>
+          <td class="num">${capCell}</td>
+          <td class="num">${(c.util * 100).toFixed(0)}%</td>
+          <td class="num">${c.p50Eff.toFixed(1)}</td>
+          <td class="num">${c.p95Eff.toFixed(1)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // winner = best capacity-per-$, plus full live ranking
+  const scoreOf = sid => results[sid].breakLoad / Math.max(results[sid].totalCost, 1);
+  const ranked = SIDS.slice().sort((a, b) => scoreOf(b) - scoreOf(a));
+  const bestSid = ranked[0];
+  let cheapestSid = SIDS[0], cheapestCost = Infinity;
+  for (const sid of SIDS) {
+    if (results[sid].totalCost < cheapestCost) { cheapestCost = results[sid].totalCost; cheapestSid = sid; }
+  }
+
+  // Update rank chips live (#1 = best CAP/$)
+  ranked.forEach((sid, i) => {
+    const chip = document.getElementById(sid + '-rank');
+    if (!chip) return;
+    chip.textContent = '#' + (i + 1);
+    chip.className = 'rank-chip rank-' + (i + 1);
+    chip.title = `Rank #${i + 1} by capacity-per-$ — ${fmtNum(results[sid].breakLoad)}${unitForBreak()} / ${fmtCost(results[sid].totalCost)}/mo`;
+  });
+
+  document.querySelectorAll('.scenario').forEach(s => s.classList.remove('winner'));
+  document.querySelectorAll('.winner-tag').forEach(t => t.remove());
+  const winnerEl = document.querySelector(`.scenario[data-id="${bestSid}"]`);
+  if (winnerEl) {
+    winnerEl.classList.add('winner');
+    const tag = document.createElement('div');
+    tag.className = 'winner-tag';
+    tag.textContent = 'BEST CAP/$';
+    winnerEl.appendChild(tag);
+  }
+
+  document.getElementById('summaryText').innerHTML =
+    `<b>Best capacity per $: Scenario ${bestSid}</b> ` +
+    `(${fmtNum(results[bestSid].breakLoad)}${unitForBreak()} at ${fmtCost(results[bestSid].totalCost)}/mo). ` +
+    `Cheapest: <b>${cheapestSid}</b> (${fmtCost(results[cheapestSid].totalCost)}). ` +
+    `Live rank: ` + ranked.map((s, i) => `<b>#${i+1}</b> ${s}`).join(' · ') + '. ' +
+    `Bottlenecks: ` + SIDS.map(s => `<b>${s}</b>→${results[s].bottleneckId}`).join(', ') + '.';
+
+  renderTable(results, bestSid);
+}
+
+function renderTable(results, winnerSid) {
+  const rows = SIDS.map(sid => ({
+    sid, name: D.scenarios[sid].label, cloud: D.scenarios[sid].cloud || 'other',
+    p50: results[sid].p50, p95: results[sid].p95, p99: results[sid].p99,
+    cost: results[sid].totalCost, break: results[sid].breakLoad,
+    bottleneck: results[sid].bottleneckId,
+  }));
+  const dir = sortAsc ? 1 : -1;
+  rows.sort((a, b) => sortKey === 'name' ? a.sid.localeCompare(b.sid) * dir : (a[sortKey] - b[sortKey]) * dir);
+
+  const breakUnit = unitForBreak();
+  document.getElementById('cmpTableBody').innerHTML = rows.map(r => `
+    <tr class="${r.sid === winnerSid ? 'win' : ''}">
+      <td><b>${r.sid}</b> <span style="color:var(--text-dim)">${escapeHtml(r.name)}</span></td>
+      <td><span class="pill ${r.cloud}">${r.cloud.toUpperCase()}</span></td>
+      <td class="num">${r.p50.toFixed(0)}</td>
+      <td class="num">${r.p95.toFixed(0)}</td>
+      <td class="num">${r.p99.toFixed(0)}</td>
+      <td class="num">${fmtCost(r.cost)}</td>
+      <td class="num">${fmtNum(r.break)}${breakUnit}</td>
+      <td>${r.bottleneck}</td>
+    </tr>
+  `).join('');
+
+  document.querySelectorAll('.cmp-table th').forEach(th => {
+    th.classList.remove('sorted', 'asc');
+    if (th.dataset.sort === sortKey) {
+      th.classList.add('sorted');
+      if (sortAsc) th.classList.add('asc');
+    }
+  });
+}
+
+// ---------- INIT ----------
+function init() {
+  // Build scenario cards
+  const container = document.getElementById('scenariosContainer');
+  for (const sid of SIDS) container.appendChild(buildScenarioCard(sid, D.scenarios[sid]));
+
+  // Context banner
+  if (D.meta.contextDescription) {
+    document.getElementById('contextBanner').innerHTML =
+      `<b>Workload:</b> ${escapeHtml(D.meta.contextDescription)}`;
+  } else {
+    document.getElementById('contextBanner').style.display = 'none';
+  }
+
+  // Workload buttons
+  document.querySelectorAll('.workload-selector button').forEach(btn => {
+    if (btn.dataset.workload === currentWorkload) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.workload-selector button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentWorkload = btn.dataset.workload;
+      document.body.dataset.workload = currentWorkload;
+      render();
+    });
+  });
+
+  // Initial slider values from meta
+  if (D.meta.initialLoad) document.getElementById(WORKLOADS[currentWorkload].inputId).value = D.meta.initialLoad;
+  if (D.meta.initialHit != null) document.getElementById('hit').value = Math.round(D.meta.initialHit * 100);
+  if (D.meta.initialBurst != null) document.getElementById('burst').value = Math.round(D.meta.initialBurst * 10);
+
+  // Slider listeners
+  ['restInput', 'wsInput', 'streamInput', 'hit', 'burst', 'msgRateInput', 'fanoutInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', render);
+  });
+
+  // Initial msg-rate / fanout from meta (WS only)
+  if (D.meta.initialMsgRate != null) document.getElementById('msgRateInput').value = Math.round(D.meta.initialMsgRate * 10);
+  if (D.meta.initialFanout  != null) document.getElementById('fanoutInput').value  = Math.round(D.meta.initialFanout);
+
+  // Auto-break button
+  document.getElementById('autoBreak').addEventListener('click', () => {
+    const hit = +document.getElementById('hit').value / 100;
+    const msgRate = +document.getElementById('msgRateInput').value / 10;
+    const fanout  = +document.getElementById('fanoutInput').value;
+    const target = Math.min(...SIDS.map(s => compute(s, 100, hit, 1, currentWorkload, msgRate, fanout).breakLoad).filter(isFinite));
+    const inputEl = document.getElementById(WORKLOADS[currentWorkload].inputId);
+    const min = +inputEl.min, max = +inputEl.max;
+    let v = +inputEl.value;
+    const step = (Math.max(min, Math.min(max, target)) - v) / 30;
+    let i = 0;
+    const iv = setInterval(() => {
+      v += step;
+      inputEl.value = Math.round(Math.max(min, Math.min(max, v)));
+      render();
+      if (++i >= 30) clearInterval(iv);
+    }, 30);
+  });
+
+  // Reset button
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('restInput').value = D.meta.initialLoad || 5000;
+    document.getElementById('wsInput').value = 50000;
+    document.getElementById('streamInput').value = 200;
+    document.getElementById('hit').value = (D.meta.initialHit || 0.8) * 100;
+    document.getElementById('burst').value = (D.meta.initialBurst || 1.0) * 10;
+    document.getElementById('msgRateInput').value = Math.round((D.meta.initialMsgRate || 1.0) * 10);
+    document.getElementById('fanoutInput').value = Math.round(D.meta.initialFanout || 1);
+    render();
+  });
+
+  // Sortable table headers
+  document.querySelectorAll('.cmp-table th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (sortKey === k) sortAsc = !sortAsc;
+      else { sortKey = k; sortAsc = true; }
+      render();
+    });
+  });
+
+  // Share URL — encode current state in query string
+  document.getElementById('copyShareBtn').addEventListener('click', () => {
+    const params = new URLSearchParams({
+      w: currentWorkload,
+      l: document.getElementById(WORKLOADS[currentWorkload].inputId).value,
+      h: document.getElementById('hit').value,
+      b: document.getElementById('burst').value,
+      m: document.getElementById('msgRateInput').value,
+      f: document.getElementById('fanoutInput').value,
+    });
+    const url = location.origin + location.pathname + '?' + params.toString();
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('copyShareBtn');
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  });
+
+  // Restore from URL params if present
+  const qp = new URLSearchParams(location.search);
+  if (qp.has('w')) currentWorkload = qp.get('w');
+  if (qp.has('l')) document.getElementById(WORKLOADS[currentWorkload].inputId).value = qp.get('l');
+  if (qp.has('h')) document.getElementById('hit').value = qp.get('h');
+  if (qp.has('b')) document.getElementById('burst').value = qp.get('b');
+  if (qp.has('m')) document.getElementById('msgRateInput').value = qp.get('m');
+  if (qp.has('f')) document.getElementById('fanoutInput').value = qp.get('f');
+
+  document.body.dataset.workload = currentWorkload;
+  render();
+}
+
+init();
+</script>
+
+</body>
+</html>

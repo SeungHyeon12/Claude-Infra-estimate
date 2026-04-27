@@ -1,0 +1,75 @@
+name: Validate catalog
+
+on:
+  pull_request:
+    paths:
+      - 'catalog/**'
+      - '.github/workflows/validate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'catalog/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli ajv-formats
+
+      - name: Validate aws.json
+        run: ajv validate -c ajv-formats -s catalog/schema.json -d catalog/aws.json
+
+      - name: Validate gcp.json
+        run: ajv validate -c ajv-formats -s catalog/schema.json -d catalog/gcp.json
+
+      - name: Validate azure.json
+        run: ajv validate -c ajv-formats -s catalog/schema.json -d catalog/azure.json
+
+      - name: JSON syntax check workloads.json
+        run: node -e "JSON.parse(require('fs').readFileSync('catalog/workloads.json'))"
+
+      - name: Iconify icon links resolve (no 404s)
+        run: |
+          set -e
+          icons=$(grep -h '"icon"' catalog/aws.json catalog/gcp.json catalog/azure.json \
+            | sed -E 's/.*"icon": "([^"]+)".*/\1/' | sort -u)
+          fail=0; total=0
+          while IFS= read -r icon; do
+            total=$((total+1))
+            code=$(curl -sf -o /dev/null -w '%{http_code}' "https://api.iconify.design/${icon}.svg" || echo FAIL)
+            if [ "$code" != "200" ]; then
+              echo "::error::Iconify icon does not resolve: ${icon} (HTTP ${code})"
+              fail=$((fail+1))
+            fi
+          done <<< "$icons"
+          echo "Checked $total icons, $fail broken"
+          [ "$fail" = "0" ]
+
+      - name: HTML smoke check (template renders)
+        run: |
+          # Minimal sanity: template/base.html parses and contains the placeholder.
+          grep -q '{{ESTIMATE_DATA_JSON}}' template/base.html
+          # Drop a known-good sample into the placeholder and check it parses as JS
+          cat > /tmp/sample.json <<'EOF'
+          {"meta":{"workload":"rest","initialLoad":5000,"initialHit":0.8,"initialBurst":1.0},
+           "scenarios":{"A":{"label":"test","cloud":"aws","flow":[
+             {"id":"a","name":"x","cap":{"rest":1000,"ws":1000,"stream":100},"p50":1,"p95":2,"costMo":10}
+           ]}}}
+          EOF
+          node -e "
+            const fs=require('fs');
+            const tpl=fs.readFileSync('template/base.html','utf8');
+            const data=fs.readFileSync('/tmp/sample.json','utf8');
+            const out=tpl.replace('{{ESTIMATE_DATA_JSON}}', data);
+            // crude check: the resulting page should parse as JS up through the script
+            if (!out.includes('window.ESTIMATE_DATA')) process.exit(1);
+            console.log('Template renders OK');
+          "

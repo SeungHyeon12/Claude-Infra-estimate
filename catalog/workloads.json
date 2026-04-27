@@ -1,0 +1,210 @@
+{
+  "workloads": {
+    "rest": {
+      "display_name": "REST API",
+      "load_unit": "RPS",
+      "load_label": "Target RPS",
+      "default_load": 5000,
+      "min_load": 100,
+      "max_load": 50000,
+      "step": 100,
+      "description": "Stateless request/response. Each request short-lived. Capacity is requests/sec.",
+      "default_arch": ["cdn", "lb", "compute", "cache", "database"],
+      "burstable": true,
+      "default_cache_hit_rate": 0.8,
+      "common_bottlenecks": ["compute_cpu", "database_qps", "lb_lcu"],
+      "latency_targets": { "p50_ms": 50, "p95_ms": 200, "p99_ms": 500 }
+    },
+    "ws": {
+      "display_name": "WebSocket",
+      "load_unit": "concurrent connections",
+      "load_label": "Concurrent connections",
+      "default_load": 50000,
+      "min_load": 1000,
+      "max_load": 500000,
+      "step": 1000,
+      "description": "Long-lived bidirectional connections. Capacity is concurrent connections; throughput depends on msg/sec per connection.",
+      "default_arch": ["cdn", "lb", "compute", "cache", "database"],
+      "burstable": false,
+      "default_cache_hit_rate": 0.5,
+      "common_bottlenecks": ["compute_memory", "lb_connections", "database_max_connections", "kernel_fd_limit"],
+      "latency_targets": { "p50_ms": 10, "p95_ms": 50, "p99_ms": 200 },
+      "extra_inputs": {
+        "msg_per_sec_per_conn": { "default": 1, "description": "Average messages per second per connection (drives downstream load)." },
+        "fanout_ratio": { "default": 1, "description": "Fan-out factor: 1 message published → N delivered (pub/sub broadcast)." }
+      }
+    },
+    "stream": {
+      "display_name": "Streaming / Event-driven",
+      "load_unit": "MB/s",
+      "load_label": "Throughput",
+      "default_load": 200,
+      "min_load": 10,
+      "max_load": 2000,
+      "step": 10,
+      "description": "Continuous data ingestion. Capacity is throughput; partitions/shards constrain parallelism.",
+      "default_arch": ["lb", "stream_ingest", "compute_consumer", "database"],
+      "burstable": true,
+      "default_cache_hit_rate": 0.0,
+      "common_bottlenecks": ["stream_partitions", "consumer_lag", "database_write_throughput"],
+      "latency_targets": { "p50_ms": 100, "p95_ms": 500, "p99_ms": 2000 },
+      "extra_inputs": {
+        "avg_record_kb": { "default": 5, "description": "Average record size in KB (drives partition count)." },
+        "consumer_groups": { "default": 1, "description": "Number of independent consumer groups (each reads full stream)." }
+      }
+    }
+  },
+  "queueing_model": {
+    "description": "Latency penalty as utilization approaches capacity, using M/M/1 approximation.",
+    "rules": [
+      { "util_below": 0.7, "factor": 1.0, "note": "Linear regime — minimal queuing." },
+      { "util_below": 0.85, "factor_formula": "1 / (1 - util)", "note": "Mild queuing — p50 starts to climb." },
+      { "util_below": 0.95, "factor_formula": "1 / (1 - util)", "note": "Heavy queuing — p99 spikes 5-10x." },
+      { "util_below": 1.0, "factor_formula": "min(1 / (1 - util), 12)", "note": "Saturated — system effectively broken." },
+      { "util_above": 1.0, "factor": 999, "note": "Overloaded — requests timing out." }
+    ]
+  },
+  "p99_estimation": {
+    "description": "p99 estimation when only p50/p95 are known.",
+    "rules": [
+      { "regime": "low_util", "formula": "p95 * 1.8", "applies_when": "util < 0.5" },
+      { "regime": "mid_util", "formula": "p95 * 2.3", "applies_when": "util < 0.85" },
+      { "regime": "high_util", "formula": "p95 * 4.0", "applies_when": "util >= 0.85" }
+    ]
+  },
+  "burst_modeling": {
+    "description": "Multiplier applied to load when simulating traffic spikes.",
+    "default_multiplier": 1.0,
+    "max_multiplier": 5.0,
+    "examples": {
+      "1.0x": "Steady state",
+      "2.0x": "Marketing campaign / news cycle",
+      "3.0x": "Black Friday / launch day",
+      "5.0x": "Viral moment / DDoS-adjacent"
+    }
+  },
+  "cold_start_models": {
+    "description": "Cold start latency added to p99 for serverless components when invocation rate is low.",
+    "lambda_node": { "p50_ms": 300, "p95_ms": 600, "applies_when": "rps_per_function < 1" },
+    "lambda_python": { "p50_ms": 400, "p95_ms": 800, "applies_when": "rps_per_function < 1" },
+    "lambda_java": { "p50_ms": 1500, "p95_ms": 3000, "applies_when": "rps_per_function < 1" },
+    "cloudfunctions_gen2": { "p50_ms": 500, "p95_ms": 1500, "applies_when": "rps_per_function < 1" },
+    "azurefunctions_consumption": { "p50_ms": 1000, "p95_ms": 3000, "applies_when": "rps_per_function < 1" },
+    "cloudrun": { "p50_ms": 800, "p95_ms": 2000, "applies_when": "rps_per_function < 1" }
+  },
+  "load_unit_equivalence": {
+    "description": "QPS, RPS, and TPS are interchangeable units for the 'rest' workload. Use whichever the user said; treat them as the same number.",
+    "qps": "Queries Per Second — DB / search context",
+    "rps": "Requests Per Second — HTTP / API context",
+    "tps": "Transactions Per Second — payments / OLTP context",
+    "rule": "All map to the catalog's `capacity.rest` field."
+  },
+  "sizing_heuristics": {
+    "description": "Back-of-envelope conversion rules from user-facing inputs (DAU, MAU, daily requests) to QPS/RPS/TPS. Source: standard capacity-planning practice (e.g., sujeet.pro/articles/capacity-planning-and-estimation).",
+    "dau_to_qps": {
+      "formula": "avg_qps = (DAU * actions_per_user_per_day) / 86400",
+      "shortcut": "Daily requests / 10^5 (≈16% low, fine for BOTE)",
+      "example": "1M DAU * 50 actions/user / 86400 ≈ 580 avg QPS",
+      "default_actions_per_user_per_day": {
+        "social_feed": 50,
+        "ecommerce_browse": 30,
+        "messaging": 200,
+        "saas_dashboard": 20,
+        "video_streaming_session": 10,
+        "search": 15,
+        "default": 30
+      }
+    },
+    "mau_to_dau": {
+      "formula": "DAU = MAU * stickiness",
+      "stickiness_defaults": {
+        "social_consumer": 0.5,
+        "messaging": 0.6,
+        "ecommerce": 0.1,
+        "saas_b2b": 0.3,
+        "default": 0.2
+      }
+    },
+    "peak_factor": {
+      "description": "Multiplier from average QPS to peak QPS. Always size against PEAK, not average.",
+      "steady_web": 2.5,
+      "ecommerce_normal": 3.0,
+      "event_driven_social": 10.0,
+      "flash_sale_or_launch": 10.0,
+      "viral_or_ddos_adjacent": 5.0,
+      "default": 3.0,
+      "rule": "peak_qps = avg_qps * peak_factor"
+    },
+    "read_write_split": {
+      "description": "Default read:write ratio for user-facing systems. Apply to compute and DB capacity separately.",
+      "social_feed": { "read": 0.99, "write": 0.01 },
+      "ecommerce_browse": { "read": 0.95, "write": 0.05 },
+      "messaging": { "read": 0.5,  "write": 0.5 },
+      "saas_dashboard": { "read": 0.9,  "write": 0.1 },
+      "transactional_oltp": { "read": 0.7,  "write": 0.3 },
+      "default": { "read": 0.9, "write": 0.1 }
+    },
+    "cache_hit_defaults": {
+      "description": "80/20 rule — 20% of data serves 80% of requests. Increasing 0→80% gives 5× DB headroom; 80→95% gives another 4×.",
+      "social_feed": 0.95,
+      "ecommerce_browse": 0.85,
+      "user_profile": 0.9,
+      "search": 0.7,
+      "session_cache": 0.99,
+      "default": 0.8
+    },
+    "storage": {
+      "annual_formula": "annual_bytes = daily_uploads_bytes * 365 * replication_factor * (1 + metadata_overhead)",
+      "replication_factor_default": 3,
+      "metadata_overhead": 0.15,
+      "example": "200 TB/day * 365 * 3 = 219 PB/year"
+    },
+    "bandwidth": {
+      "egress_formula": "total_bps = concurrent_users * avg_bitrate_bps",
+      "example": "10M concurrent * 3 Mbps = 30 Tbps"
+    },
+    "littles_law": {
+      "formula": "concurrent_in_flight = qps * avg_latency_seconds",
+      "example": "10000 QPS * 0.005s = 50 in-flight",
+      "use_for": "Sizing connection pools, worker pool concurrency, file-descriptor budget."
+    },
+    "tail_fanout": {
+      "description": "Fan-out amplifies tail latency. P(any of N exceeds p) = 1 - (1-p)^N.",
+      "rule": "If service fans out to N=100 backends and you want overall p99, each backend must hit p99.99.",
+      "examples": {
+        "n_10_p99_each": 0.10,
+        "n_100_p99_each": 0.63,
+        "n_100_for_overall_p99_each_must_be": "p99.99"
+      }
+    },
+    "provisioning_rule": {
+      "formula": "servers = ceil(peak_qps / (server_capacity_qps * 0.7)) + 2",
+      "explanation": "Target 70% util at peak, then add N+2 for redundancy (planned drain + unplanned failure).",
+      "example": "100k peak QPS / 5k per server / 0.7 ≈ 29 servers, +2 = 31 servers"
+    }
+  },
+  "single_server_benchmarks": {
+    "description": "Order-of-magnitude per-server capacity. Use to sanity-check catalog values and to flag suspicious numbers.",
+    "nginx_static_qps":      { "low": 10000,  "high": 100000 },
+    "app_server_qps":        { "low": 1000,   "high": 10000 },
+    "mysql_read_qps":        { "low": 10000,  "high": 50000 },
+    "mysql_write_qps":       { "low": 1000,   "high": 10000 },
+    "postgres_qps":          { "low": 10000,  "high": 30000 },
+    "redis_qps":             { "low": 100000, "high": 500000 },
+    "kafka_per_broker_mbps": { "low": 50,     "high": 200 }
+  },
+  "availability_targets": {
+    "description": "Map availability % to downtime budget. Each extra '9' costs ~10× the engineering investment.",
+    "99":    { "year": "3.65 days",   "month": "7.30 hours" },
+    "99.9":  { "year": "8.76 hours",  "month": "43.8 minutes" },
+    "99.99": { "year": "52.6 minutes","month": "4.38 minutes" },
+    "99.999":{ "year": "5.26 minutes","month": "26.3 seconds" }
+  },
+  "sharding_triggers": {
+    "description": "When to recommend sharding / partitioning in scenarios.",
+    "rows_per_table_gt": 100000000,
+    "db_size_tb_gt": 1,
+    "sustained_write_qps_gt": 5000,
+    "replication_lag_seconds_gt": 1
+  }
+}

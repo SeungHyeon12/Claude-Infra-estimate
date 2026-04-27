@@ -1,0 +1,28 @@
+# Generated reports
+.claude/estimates/
+*.html.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node (if anyone adds tooling later)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python (validation scripts, etc.)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs
+*.log

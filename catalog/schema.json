@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Capacity Estimator — Service Catalog",
+  "description": "Schema for cloud provider service catalog files (aws.json, gcp.json, azure.json).",
+  "type": "object",
+  "required": ["vendor", "region_default", "services"],
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "enum": ["aws", "gcp", "azure", "other"]
+    },
+    "region_default": {
+      "type": "string",
+      "description": "Region used for the prices in this catalog (e.g., us-east-1)."
+    },
+    "currency": { "type": "string", "default": "USD" },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this catalog was last verified against vendor pricing."
+    },
+    "services": {
+      "type": "object",
+      "description": "Keyed by service id (e.g., 'compute.ec2.m5.large').",
+      "additionalProperties": { "$ref": "#/definitions/service" }
+    }
+  },
+  "definitions": {
+    "service": {
+      "type": "object",
+      "required": ["kind", "display_name", "cost"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["compute", "database", "cache", "lb", "cdn", "queue", "storage", "stream", "auth", "monitoring", "dns", "secrets", "function", "container"]
+        },
+        "display_name": { "type": "string" },
+        "icon": {
+          "type": "string",
+          "description": "Iconify name, e.g., 'logos:aws-ec2'."
+        },
+        "spec": {
+          "type": "object",
+          "description": "Free-form spec (vCPU, RAM, IOPS, etc.).",
+          "additionalProperties": true
+        },
+        "capacity": {
+          "type": "object",
+          "description": "Per-workload capacity. Keys: rest (RPS), ws (concurrent connections), stream (MB/s).",
+          "properties": {
+            "rest":   { "type": "number" },
+            "ws":     { "type": "number" },
+            "stream": { "type": "number" }
+          }
+        },
+        "latency": {
+          "type": "object",
+          "description": "Baseline latency contribution in milliseconds, before queuing penalty.",
+          "properties": {
+            "p50": { "type": "number" },
+            "p95": { "type": "number" }
+          },
+          "required": ["p50", "p95"]
+        },
+        "cost": {
+          "type": "object",
+          "description": "Either fixed monthly cost or a function of load. Use one of: cost_per_hour_usd, cost_per_month_usd, or cost_fn.",
+          "properties": {
+            "cost_per_hour_usd":  { "type": "number" },
+            "cost_per_month_usd": { "type": "number" },
+            "cost_fn": {
+              "type": "object",
+              "description": "Cost function — varies by load. Used for serverless/usage-billed services.",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "enum": ["per_request", "per_gb_sec", "per_message", "per_gb_egress", "per_rcu_wcu"]
+                },
+                "rest":   { "type": "number", "description": "Cost per unit (request) for REST workload." },
+                "ws":     { "type": "number", "description": "Cost per unit (connection-hour) for WS workload." },
+                "stream": { "type": "number", "description": "Cost per unit (GB) for streaming workload." },
+                "free_tier": { "type": "number" }
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form caveats (regional pricing, soft limits, etc.)."
+        },
+        "limits": {
+          "type": "object",
+          "description": "Hard caps that the auto-scale logic cannot bypass — must be remediated (pooler, sharding, ulimit, quota request).",
+          "properties": {
+            "max_connections": {
+              "type": "number",
+              "description": "Connection ceiling. For WS workload, the runtime checks total connections against this and flags a 'hard limit breached' banner when load exceeds it (regardless of how much auto-scale ×N has been applied)."
+            },
+            "scales_with_instances": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, the limit multiplies with horizontal scale-out (e.g., compute kernel FD — each new instance has its own 65k). If false, it's an absolute ceiling (e.g., DB max_connections — adding more replicas doesn't help; need a connection pooler)."
+            },
+            "remediation": {
+              "type": "string",
+              "description": "Human-readable advice when the limit is breached, e.g., 'Add PgBouncer / RDS Proxy to pool connections.'"
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

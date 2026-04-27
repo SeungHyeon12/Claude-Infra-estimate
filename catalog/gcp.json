@@ -1,0 +1,243 @@
+{
+  "vendor": "gcp",
+  "region_default": "us-central1",
+  "currency": "USD",
+  "last_updated": "2026-04-27",
+  "services": {
+    "compute.gce.e2-standard-2": {
+      "kind": "compute",
+      "display_name": "GCE e2-standard-2",
+      "icon": "logos:google-cloud",
+      "spec": { "vcpu": 2, "ram_gb": 8 },
+      "capacity": { "rest": 2800, "ws": 28000, "stream": 90 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.067 }
+    },
+    "compute.gce.n2-standard-2": {
+      "kind": "compute",
+      "display_name": "GCE n2-standard-2",
+      "icon": "logos:google-cloud",
+      "spec": { "vcpu": 2, "ram_gb": 8 },
+      "capacity": { "rest": 3200, "ws": 32000, "stream": 110 },
+      "latency": { "p50": 5, "p95": 14 },
+      "cost": { "cost_per_hour_usd": 0.097 }
+    },
+    "compute.gce.n2-standard-4": {
+      "kind": "compute",
+      "display_name": "GCE n2-standard-4",
+      "icon": "logos:google-cloud",
+      "spec": { "vcpu": 4, "ram_gb": 16 },
+      "capacity": { "rest": 6500, "ws": 60000, "stream": 220 },
+      "latency": { "p50": 5, "p95": 14 },
+      "cost": { "cost_per_hour_usd": 0.194 }
+    },
+    "compute.cloudrun": {
+      "kind": "container",
+      "display_name": "Cloud Run (1vCPU/512MB)",
+      "icon": "logos:google-cloud-run",
+      "spec": { "vcpu": 1, "ram_mb": 512 },
+      "capacity": { "rest": 1000, "ws": 1000, "stream": 50 },
+      "latency": { "p50": 8, "p95": 30 },
+      "cost": {
+        "cost_fn": {
+          "model": "per_request",
+          "rest": 0.0000004,
+          "ws":   0.10,
+          "stream": 5
+        }
+      },
+      "notes": "Scales to zero. Cold start ~500ms-2s. $0.40/1M requests + CPU/memory time."
+    },
+    "compute.gke.standard": {
+      "kind": "container",
+      "display_name": "GKE Standard (per node n2-std-4)",
+      "icon": "logos:kubernetes",
+      "spec": { "vcpu": 4, "ram_gb": 16 },
+      "capacity": { "rest": 6500, "ws": 60000, "stream": 220 },
+      "latency": { "p50": 6, "p95": 16 },
+      "cost": { "cost_per_hour_usd": 0.194 },
+      "notes": "GKE control plane: ~$72/mo (one zonal cluster free)."
+    },
+    "compute.functions.256mb": {
+      "kind": "function",
+      "display_name": "Cloud Functions 256MB",
+      "icon": "logos:google-cloud",
+      "spec": { "memory_mb": 256, "max_concurrent": 1000 },
+      "capacity": { "rest": 30000, "ws": 0, "stream": 100 },
+      "latency": { "p50": 50, "p95": 200 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.0000004, "stream": 30 }
+      },
+      "notes": "Cold start ~2-5s for Node/Python (Gen 1). Use Gen 2 for ~500ms cold starts."
+    },
+    "database.cloudsql.postgres.std-2": {
+      "kind": "database",
+      "display_name": "Cloud SQL Postgres db-n1-standard-2",
+      "icon": "logos:postgresql",
+      "spec": { "vcpu": 2, "ram_gb": 7.5, "engine": "postgres" },
+      "capacity": { "rest": 3500, "ws": 500, "stream": 50 },
+      "latency": { "p50": 5, "p95": 14 },
+      "cost": { "cost_per_hour_usd": 0.252 },
+      "limits": {
+        "max_connections": 800,
+        "scales_with_instances": false,
+        "remediation": "Use Cloud SQL Auth Proxy + connection pooler (PgBouncer) to fan in app connections."
+      }
+    },
+    "database.cloudsql.postgres.std-4": {
+      "kind": "database",
+      "display_name": "Cloud SQL Postgres db-n1-standard-4",
+      "icon": "logos:postgresql",
+      "spec": { "vcpu": 4, "ram_gb": 15, "engine": "postgres" },
+      "capacity": { "rest": 7000, "ws": 1000, "stream": 100 },
+      "latency": { "p50": 5, "p95": 14 },
+      "cost": { "cost_per_hour_usd": 0.504 },
+      "limits": {
+        "max_connections": 1600,
+        "scales_with_instances": false,
+        "remediation": "Use Cloud SQL Auth Proxy + PgBouncer."
+      }
+    },
+    "database.spanner.1node": {
+      "kind": "database",
+      "display_name": "Spanner (1 node)",
+      "icon": "logos:google-cloud",
+      "spec": { "engine": "spanner", "nodes": 1 },
+      "capacity": { "rest": 10000, "ws": 10000, "stream": 200 },
+      "latency": { "p50": 8, "p95": 30 },
+      "cost": { "cost_per_month_usd": 657 },
+      "notes": "Globally consistent SQL. ~$0.90/node-hour. Storage extra."
+    },
+    "database.firestore": {
+      "kind": "database",
+      "display_name": "Firestore",
+      "icon": "logos:firebase",
+      "spec": { "engine": "doc" },
+      "capacity": { "rest": 10000, "ws": 10000, "stream": 100 },
+      "latency": { "p50": 30, "p95": 100 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.00000006 }
+      },
+      "notes": "$0.06/100K reads, $0.18/100K writes."
+    },
+    "database.bigtable.1node": {
+      "kind": "database",
+      "display_name": "Bigtable (1 SSD node)",
+      "icon": "logos:google-cloud",
+      "spec": { "engine": "wide-column", "nodes": 1 },
+      "capacity": { "rest": 10000, "ws": 10000, "stream": 1000 },
+      "latency": { "p50": 6, "p95": 18 },
+      "cost": { "cost_per_month_usd": 481 },
+      "notes": "$0.65/node-hour. SSD storage $0.17/GB-month."
+    },
+    "cache.memorystore.redis.basic.1gb": {
+      "kind": "cache",
+      "display_name": "Memorystore Redis Basic 1GB",
+      "icon": "logos:redis",
+      "spec": { "ram_gb": 1, "engine": "redis" },
+      "capacity": { "rest": 50000, "ws": 30000, "stream": 1000 },
+      "latency": { "p50": 0.7, "p95": 1.8 },
+      "cost": { "cost_per_hour_usd": 0.054 }
+    },
+    "cache.memorystore.redis.standard.5gb": {
+      "kind": "cache",
+      "display_name": "Memorystore Redis Standard 5GB (HA)",
+      "icon": "logos:redis",
+      "spec": { "ram_gb": 5, "engine": "redis" },
+      "capacity": { "rest": 100000, "ws": 60000, "stream": 2000 },
+      "latency": { "p50": 0.6, "p95": 1.5 },
+      "cost": { "cost_per_hour_usd": 0.296 }
+    },
+    "lb.cloud-lb.global": {
+      "kind": "lb",
+      "display_name": "Cloud Load Balancing (Global HTTP(S))",
+      "icon": "logos:google-cloud",
+      "capacity": { "rest": 1000000, "ws": 1000000, "stream": 50000 },
+      "latency": { "p50": 3, "p95": 7 },
+      "cost": { "cost_per_month_usd": 25 },
+      "notes": "Anycast global LB. Scales to millions of QPS."
+    },
+    "cdn.cloud-cdn": {
+      "kind": "cdn",
+      "display_name": "Cloud CDN",
+      "icon": "logos:google-cloud",
+      "capacity": { "rest": 1000000000 },
+      "latency": { "p50": 6, "p95": 18 },
+      "cost": {
+        "cost_fn": { "model": "per_gb_egress", "rest": 0.08 }
+      },
+      "notes": "$0.08/GB out (first 10TB)."
+    },
+    "queue.pubsub": {
+      "kind": "queue",
+      "display_name": "Pub/Sub",
+      "icon": "logos:google-cloud",
+      "capacity": { "rest": 10000000, "stream": 10000 },
+      "latency": { "p50": 50, "p95": 200 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.00000004 }
+      },
+      "notes": "$40/TB published. Effectively unlimited throughput."
+    },
+    "queue.cloudtasks": {
+      "kind": "queue",
+      "display_name": "Cloud Tasks",
+      "icon": "logos:google-cloud",
+      "capacity": { "rest": 500 },
+      "latency": { "p50": 20, "p95": 100 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.0000004 }
+      },
+      "notes": "First 1M ops/mo free. $0.40/1M after."
+    },
+    "stream.dataflow": {
+      "kind": "stream",
+      "display_name": "Dataflow (per worker n1-std-1)",
+      "icon": "logos:google-cloud",
+      "spec": { "vcpu": 1, "ram_gb": 3.75 },
+      "capacity": { "stream": 50 },
+      "latency": { "p50": 100, "p95": 500 },
+      "cost": { "cost_per_hour_usd": 0.069 }
+    },
+    "storage.gcs.standard": {
+      "kind": "storage",
+      "display_name": "Cloud Storage Standard",
+      "icon": "logos:google-cloud",
+      "capacity": { "rest": 5000, "stream": 1000 },
+      "latency": { "p50": 25, "p95": 80 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.0000004 }
+      },
+      "notes": "$0.020/GB-month. $0.005/10K Class A ops, $0.0004/10K Class B."
+    },
+    "auth.firebase-auth": {
+      "kind": "auth",
+      "display_name": "Firebase Authentication",
+      "icon": "logos:firebase",
+      "capacity": { "rest": 10000 },
+      "latency": { "p50": 50, "p95": 200 },
+      "cost": { "cost_per_month_usd": 0 },
+      "notes": "Free for email/social login up to 50K MAU. Phone auth $0.06/SMS."
+    },
+    "monitoring.cloud-monitoring": {
+      "kind": "monitoring",
+      "display_name": "Cloud Monitoring",
+      "icon": "logos:google-cloud",
+      "cost": { "cost_per_month_usd": 25 },
+      "notes": "First 150MB metrics/mo free. $0.2580/MB after."
+    },
+    "dns.cloud-dns": {
+      "kind": "dns",
+      "display_name": "Cloud DNS",
+      "icon": "logos:google-cloud",
+      "cost": { "cost_per_month_usd": 1 }
+    },
+    "secrets.secret-manager": {
+      "kind": "secrets",
+      "display_name": "Secret Manager",
+      "icon": "logos:google-cloud",
+      "cost": { "cost_per_month_usd": 2 },
+      "notes": "$0.06/secret-version-month + $0.03/10K access ops."
+    }
+  }
+}

@@ -1,0 +1,342 @@
+{
+  "vendor": "aws",
+  "region_default": "us-east-1",
+  "currency": "USD",
+  "last_updated": "2026-04-27",
+  "services": {
+    "compute.ec2.m5.large": {
+      "kind": "compute",
+      "display_name": "EC2 m5.large",
+      "icon": "logos:aws-ec2",
+      "spec": { "vcpu": 2, "ram_gb": 8, "network_gbps": 10 },
+      "capacity": { "rest": 3000, "ws": 30000, "stream": 100 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.096 },
+      "limits": {
+        "max_connections": 65000,
+        "scales_with_instances": true,
+        "remediation": "Raise kernel FD limit (ulimit -n) and tune net.core.somaxconn / net.ipv4.ip_local_port_range. Above 65k/instance, add more instances."
+      }
+    },
+    "compute.ec2.m5.xlarge": {
+      "kind": "compute",
+      "display_name": "EC2 m5.xlarge",
+      "icon": "logos:aws-ec2",
+      "spec": { "vcpu": 4, "ram_gb": 16, "network_gbps": 10 },
+      "capacity": { "rest": 6000, "ws": 60000, "stream": 200 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.192 }
+    },
+    "compute.ec2.m5.2xlarge": {
+      "kind": "compute",
+      "display_name": "EC2 m5.2xlarge",
+      "icon": "logos:aws-ec2",
+      "spec": { "vcpu": 8, "ram_gb": 32, "network_gbps": 10 },
+      "capacity": { "rest": 12000, "ws": 120000, "stream": 400 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.384 }
+    },
+    "compute.ec2.c5.large": {
+      "kind": "compute",
+      "display_name": "EC2 c5.large (compute-opt)",
+      "icon": "logos:aws-ec2",
+      "spec": { "vcpu": 2, "ram_gb": 4, "network_gbps": 10 },
+      "capacity": { "rest": 4000, "ws": 25000, "stream": 150 },
+      "latency": { "p50": 4, "p95": 12 },
+      "cost": { "cost_per_hour_usd": 0.085 }
+    },
+    "compute.fargate.standard": {
+      "kind": "container",
+      "display_name": "ECS Fargate task (1vCPU/2GB)",
+      "icon": "logos:aws-fargate",
+      "spec": { "vcpu": 1, "ram_gb": 2 },
+      "capacity": { "rest": 1500, "ws": 15000, "stream": 50 },
+      "latency": { "p50": 6, "p95": 18 },
+      "cost": { "cost_per_hour_usd": 0.0506 },
+      "notes": "Per task. Pricing is vCPU-hour ($0.04048) + GB-hour ($0.004445)."
+    },
+    "compute.lambda.256mb": {
+      "kind": "function",
+      "display_name": "Lambda 256MB",
+      "icon": "logos:aws-lambda",
+      "spec": { "memory_mb": 256, "max_concurrent": 1000 },
+      "capacity": { "rest": 50000, "ws": 10000, "stream": 200 },
+      "latency": { "p50": 30, "p95": 100 },
+      "cost": {
+        "cost_fn": {
+          "model": "per_request",
+          "rest":   0.00000027,
+          "ws":     0.5,
+          "stream": 30
+        }
+      },
+      "notes": "Cold start ~300-500ms for Node/Python. Use provisioned concurrency to remove."
+    },
+    "compute.apprunner.1vcpu": {
+      "kind": "container",
+      "display_name": "App Runner 1vCPU/2GB",
+      "icon": "logos:aws",
+      "spec": { "vcpu": 1, "ram_gb": 2 },
+      "capacity": { "rest": 1500, "ws": 15000, "stream": 50 },
+      "latency": { "p50": 7, "p95": 20 },
+      "cost": { "cost_per_hour_usd": 0.064 }
+    },
+    "database.rds.postgres.r5.large": {
+      "kind": "database",
+      "display_name": "RDS Postgres db.r5.large",
+      "icon": "logos:aws-rds",
+      "spec": { "vcpu": 2, "ram_gb": 16, "engine": "postgres" },
+      "capacity": { "rest": 2500, "ws": 400, "stream": 40 },
+      "latency": { "p50": 4, "p95": 12 },
+      "cost": { "cost_per_hour_usd": 0.252 },
+      "limits": {
+        "max_connections": 1700,
+        "scales_with_instances": false,
+        "remediation": "Add RDS Proxy or PgBouncer — without pooling, each app worker holds a long-lived conn and you'll hit max_connections fast."
+      },
+      "notes": "PK lookup capacity. Complex JOINs reduce throughput by ~3x. Postgres max_connections ≈ LEAST(DBInstanceClassMemory/9.5MB, 5000) → ~1700 for r5.large."
+    },
+    "database.rds.postgres.r5.xlarge": {
+      "kind": "database",
+      "display_name": "RDS Postgres db.r5.xlarge",
+      "icon": "logos:aws-rds",
+      "spec": { "vcpu": 4, "ram_gb": 32, "engine": "postgres" },
+      "capacity": { "rest": 5000, "ws": 800, "stream": 80 },
+      "latency": { "p50": 4, "p95": 12 },
+      "cost": { "cost_per_hour_usd": 0.504 },
+      "limits": {
+        "max_connections": 3400,
+        "scales_with_instances": false,
+        "remediation": "Add RDS Proxy or PgBouncer for pooling."
+      }
+    },
+    "database.aurora.serverless.v2": {
+      "kind": "database",
+      "display_name": "Aurora Serverless v2 (Postgres)",
+      "icon": "logos:aws-aurora",
+      "spec": { "engine": "postgres", "min_acu": 0.5, "max_acu": 16 },
+      "capacity": { "rest": 4000, "ws": 600, "stream": 60 },
+      "latency": { "p50": 4, "p95": 12 },
+      "cost": {
+        "cost_fn": {
+          "model": "per_request",
+          "rest": 0.000001,
+          "ws": 0.05,
+          "stream": 1
+        }
+      },
+      "limits": {
+        "max_connections": 5000,
+        "scales_with_instances": false,
+        "remediation": "Aurora caps at 5,000. Use RDS Proxy for higher fan-in."
+      },
+      "notes": "$0.12 per ACU-hour. Auto-scaling 0.5–16 ACU. Cold scale-down may add 1–5s latency."
+    },
+    "database.dynamodb.ondemand": {
+      "kind": "database",
+      "display_name": "DynamoDB on-demand",
+      "icon": "logos:aws-dynamodb",
+      "spec": { "engine": "kv" },
+      "capacity": { "rest": 100000, "ws": 100000, "stream": 500 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": {
+        "cost_fn": {
+          "model": "per_rcu_wcu",
+          "rest":   0.00000025,
+          "ws":     0.05,
+          "stream": 8
+        }
+      },
+      "notes": "On-demand pricing. Switch to provisioned + auto-scaling for predictable workloads (~70% cheaper)."
+    },
+    "database.dynamodb.provisioned": {
+      "kind": "database",
+      "display_name": "DynamoDB provisioned (5k RCU)",
+      "icon": "logos:aws-dynamodb",
+      "spec": { "engine": "kv", "rcu": 5000, "wcu": 1000 },
+      "capacity": { "rest": 5000, "ws": 5000, "stream": 200 },
+      "latency": { "p50": 4, "p95": 12 },
+      "cost": { "cost_per_month_usd": 477 }
+    },
+    "cache.elasticache.t3.medium": {
+      "kind": "cache",
+      "display_name": "ElastiCache Redis cache.t3.medium",
+      "icon": "logos:aws-elasticache",
+      "spec": { "vcpu": 2, "ram_gb": 3.09, "engine": "redis" },
+      "capacity": { "rest": 50000, "ws": 30000, "stream": 1000 },
+      "latency": { "p50": 0.6, "p95": 1.5 },
+      "cost": { "cost_per_hour_usd": 0.068 }
+    },
+    "cache.elasticache.r6g.large": {
+      "kind": "cache",
+      "display_name": "ElastiCache Redis cache.r6g.large",
+      "icon": "logos:aws-elasticache",
+      "spec": { "vcpu": 2, "ram_gb": 13.07, "engine": "redis" },
+      "capacity": { "rest": 100000, "ws": 60000, "stream": 2000 },
+      "latency": { "p50": 0.5, "p95": 1.2 },
+      "cost": { "cost_per_hour_usd": 0.201 },
+      "limits": {
+        "max_connections": 65000,
+        "scales_with_instances": false,
+        "remediation": "Redis maxclients default 65k. For higher fan-in, enable Redis Cluster mode and shard channels."
+      }
+    },
+    "lb.alb": {
+      "kind": "lb",
+      "display_name": "Application Load Balancer",
+      "icon": "logos:aws-elb",
+      "capacity": { "rest": 100000, "ws": 100000, "stream": 5000 },
+      "latency": { "p50": 2, "p95": 5 },
+      "cost": { "cost_per_month_usd": 22 },
+      "notes": "$0.0225/hr fixed + LCU charges. ~$22/mo at moderate traffic."
+    },
+    "lb.nlb": {
+      "kind": "lb",
+      "display_name": "Network Load Balancer",
+      "icon": "logos:aws-elb",
+      "capacity": { "rest": 1000000, "ws": 1000000, "stream": 50000 },
+      "latency": { "p50": 1, "p95": 3 },
+      "cost": { "cost_per_month_usd": 22 },
+      "notes": "L4. Use for raw TCP/UDP throughput or static IP."
+    },
+    "lb.apigw.http": {
+      "kind": "lb",
+      "display_name": "API Gateway (HTTP API)",
+      "icon": "logos:aws-api-gateway",
+      "capacity": { "rest": 10000, "ws": 100000, "stream": 0 },
+      "latency": { "p50": 8, "p95": 25 },
+      "cost": {
+        "cost_fn": {
+          "model": "per_request",
+          "rest": 0.000001,
+          "ws":   0.25
+        }
+      },
+      "notes": "$1.00/1M req for HTTP API. Region soft limit ~10k RPS — request increase for more."
+    },
+    "lb.apigw.rest": {
+      "kind": "lb",
+      "display_name": "API Gateway (REST API)",
+      "icon": "logos:aws-api-gateway",
+      "capacity": { "rest": 10000, "ws": 0, "stream": 0 },
+      "latency": { "p50": 12, "p95": 35 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.0000035 }
+      },
+      "notes": "$3.50/1M req — 3.5x more expensive than HTTP API. Use only for legacy/throttling features."
+    },
+    "cdn.cloudfront": {
+      "kind": "cdn",
+      "display_name": "CloudFront",
+      "icon": "logos:aws-cloudfront",
+      "capacity": { "rest": 1000000000, "ws": 0, "stream": 1000 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": {
+        "cost_fn": { "model": "per_gb_egress", "rest": 0.085, "stream": 0.085 }
+      },
+      "notes": "$0.085/GB out (first 10TB). ~$0.0075/10K req."
+    },
+    "queue.sqs.standard": {
+      "kind": "queue",
+      "display_name": "SQS Standard",
+      "icon": "logos:aws-sqs",
+      "capacity": { "rest": 1000000, "stream": 1000 },
+      "latency": { "p50": 10, "p95": 50 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.0000004 }
+      },
+      "notes": "$0.40/1M req. Effectively unlimited throughput."
+    },
+    "queue.sns": {
+      "kind": "queue",
+      "display_name": "SNS",
+      "icon": "logos:aws-sns",
+      "capacity": { "rest": 100000 },
+      "latency": { "p50": 30, "p95": 200 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.0000005 }
+      }
+    },
+    "queue.eventbridge": {
+      "kind": "queue",
+      "display_name": "EventBridge",
+      "icon": "logos:aws-eventbridge",
+      "capacity": { "rest": 10000 },
+      "latency": { "p50": 50, "p95": 250 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.000001 }
+      },
+      "notes": "Custom events $1.00/1M. Can become expensive at high throughput."
+    },
+    "stream.kinesis.shard": {
+      "kind": "stream",
+      "display_name": "Kinesis Data Streams (per shard)",
+      "icon": "logos:aws-kinesis",
+      "spec": { "shards": 1 },
+      "capacity": { "rest": 1000, "stream": 1 },
+      "latency": { "p50": 70, "p95": 250 },
+      "cost": { "cost_per_month_usd": 11 },
+      "notes": "Per shard. 1 MB/s in, 2 MB/s out, 1000 records/s. $0.015/hr/shard + PUT pricing."
+    },
+    "stream.msk.kafka.m5.large": {
+      "kind": "stream",
+      "display_name": "MSK Kafka m5.large (per broker)",
+      "icon": "logos:aws-msk",
+      "spec": { "vcpu": 2, "ram_gb": 8 },
+      "capacity": { "stream": 80 },
+      "latency": { "p50": 10, "p95": 30 },
+      "cost": { "cost_per_hour_usd": 0.21 },
+      "notes": "Per broker. Min 3 brokers. Storage extra."
+    },
+    "storage.s3.standard": {
+      "kind": "storage",
+      "display_name": "S3 Standard",
+      "icon": "logos:aws-s3",
+      "capacity": { "rest": 5500, "stream": 1000 },
+      "latency": { "p50": 30, "p95": 100 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.0000004 }
+      },
+      "notes": "5,500 GET/s per prefix soft limit. $0.023/GB-month storage. $0.0004/1K GET."
+    },
+    "auth.cognito": {
+      "kind": "auth",
+      "display_name": "Cognito User Pool",
+      "icon": "logos:aws-cognito",
+      "capacity": { "rest": 5000 },
+      "latency": { "p50": 100, "p95": 400 },
+      "cost": { "cost_per_month_usd": 50 },
+      "notes": "Free tier: 50K MAU. After that ~$0.0055/MAU."
+    },
+    "monitoring.cloudwatch": {
+      "kind": "monitoring",
+      "display_name": "CloudWatch",
+      "icon": "logos:aws-cloudwatch",
+      "cost": { "cost_per_month_usd": 30 },
+      "notes": "Custom metrics $0.30/metric. Logs $0.50/GB ingest, $0.03/GB stored."
+    },
+    "monitoring.xray": {
+      "kind": "monitoring",
+      "display_name": "X-Ray",
+      "icon": "logos:aws-xray",
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.000005 }
+      },
+      "notes": "$5/1M traces recorded. $0.50/1M scanned/retrieved."
+    },
+    "dns.route53": {
+      "kind": "dns",
+      "display_name": "Route 53",
+      "icon": "logos:aws-route53",
+      "cost": { "cost_per_month_usd": 1 },
+      "notes": "$0.50/hosted zone + $0.40/1M queries."
+    },
+    "secrets.secretsmanager": {
+      "kind": "secrets",
+      "display_name": "Secrets Manager",
+      "icon": "logos:aws-secrets-manager",
+      "cost": { "cost_per_month_usd": 2 },
+      "notes": "$0.40/secret-month + $0.05/10K API calls."
+    }
+  }
+}

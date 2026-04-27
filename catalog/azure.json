@@ -1,0 +1,256 @@
+{
+  "vendor": "azure",
+  "region_default": "eastus",
+  "currency": "USD",
+  "last_updated": "2026-04-27",
+  "services": {
+    "compute.vm.b2s": {
+      "kind": "compute",
+      "display_name": "VM B2s (burstable)",
+      "icon": "logos:microsoft-azure",
+      "spec": { "vcpu": 2, "ram_gb": 4 },
+      "capacity": { "rest": 2000, "ws": 20000, "stream": 60 },
+      "latency": { "p50": 6, "p95": 18 },
+      "cost": { "cost_per_hour_usd": 0.0416 },
+      "notes": "Burstable. Sustained CPU may throttle to baseline."
+    },
+    "compute.vm.d2s_v5": {
+      "kind": "compute",
+      "display_name": "VM D2s v5",
+      "icon": "logos:microsoft-azure",
+      "spec": { "vcpu": 2, "ram_gb": 8 },
+      "capacity": { "rest": 3000, "ws": 30000, "stream": 100 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.096 }
+    },
+    "compute.vm.d4s_v5": {
+      "kind": "compute",
+      "display_name": "VM D4s v5",
+      "icon": "logos:microsoft-azure",
+      "spec": { "vcpu": 4, "ram_gb": 16 },
+      "capacity": { "rest": 6000, "ws": 60000, "stream": 200 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.192 }
+    },
+    "compute.appservice.p1v3": {
+      "kind": "container",
+      "display_name": "App Service P1v3",
+      "icon": "logos:microsoft-azure",
+      "spec": { "vcpu": 2, "ram_gb": 8 },
+      "capacity": { "rest": 3000, "ws": 30000, "stream": 80 },
+      "latency": { "p50": 5, "p95": 15 },
+      "cost": { "cost_per_hour_usd": 0.211 }
+    },
+    "compute.containerapps.standard": {
+      "kind": "container",
+      "display_name": "Container Apps (1vCPU/2GB)",
+      "icon": "logos:microsoft-azure",
+      "spec": { "vcpu": 1, "ram_gb": 2 },
+      "capacity": { "rest": 1500, "ws": 15000, "stream": 50 },
+      "latency": { "p50": 7, "p95": 20 },
+      "cost": {
+        "cost_fn": {
+          "model": "per_request",
+          "rest": 0.0000004,
+          "ws": 0.10,
+          "stream": 5
+        }
+      },
+      "notes": "Scale-to-zero supported. ~$0.04/vCPU-hour active."
+    },
+    "compute.aks.standard": {
+      "kind": "container",
+      "display_name": "AKS (per node D4s v5)",
+      "icon": "logos:microsoft-azure",
+      "spec": { "vcpu": 4, "ram_gb": 16 },
+      "capacity": { "rest": 6000, "ws": 60000, "stream": 200 },
+      "latency": { "p50": 6, "p95": 16 },
+      "cost": { "cost_per_hour_usd": 0.192 }
+    },
+    "compute.functions.consumption": {
+      "kind": "function",
+      "display_name": "Functions (consumption plan)",
+      "icon": "logos:microsoft-azure",
+      "spec": { "memory_mb": 256 },
+      "capacity": { "rest": 30000, "ws": 0, "stream": 100 },
+      "latency": { "p50": 40, "p95": 150 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.0000002 }
+      },
+      "notes": "$0.20/1M executions + GB-s. Cold start ~1-3s. First 400K GB-s + 1M req free."
+    },
+    "database.azuresql.s3": {
+      "kind": "database",
+      "display_name": "Azure SQL S3 (100 DTU)",
+      "icon": "simple-icons:microsoftsqlserver",
+      "spec": { "engine": "sqlserver", "dtu": 100 },
+      "capacity": { "rest": 4000, "ws": 600, "stream": 60 },
+      "latency": { "p50": 6, "p95": 14 },
+      "cost": { "cost_per_month_usd": 152 },
+      "limits": {
+        "max_connections": 600,
+        "scales_with_instances": false,
+        "remediation": "S3 caps at 600 concurrent sessions. Move to S6/Hyperscale or use connection pooling middleware."
+      }
+    },
+    "database.azuresql.s6": {
+      "kind": "database",
+      "display_name": "Azure SQL S6 (400 DTU)",
+      "icon": "simple-icons:microsoftsqlserver",
+      "spec": { "engine": "sqlserver", "dtu": 400 },
+      "capacity": { "rest": 12000, "ws": 2000, "stream": 200 },
+      "latency": { "p50": 5, "p95": 12 },
+      "cost": { "cost_per_month_usd": 605 },
+      "limits": {
+        "max_connections": 2400,
+        "scales_with_instances": false,
+        "remediation": "Use connection pooling at app layer."
+      }
+    },
+    "database.azuresql.hyperscale": {
+      "kind": "database",
+      "display_name": "Azure SQL Hyperscale (4 vCore Gen5)",
+      "icon": "simple-icons:microsoftsqlserver",
+      "spec": { "engine": "sqlserver", "vcpu": 4 },
+      "capacity": { "rest": 8000, "ws": 1500, "stream": 150 },
+      "latency": { "p50": 5, "p95": 13 },
+      "cost": { "cost_per_month_usd": 1490 },
+      "notes": "Storage scales to 100TB. Fast restore. Higher floor cost than DTU tiers."
+    },
+    "database.cosmos.throughput.10kru": {
+      "kind": "database",
+      "display_name": "Cosmos DB (10K RU/s provisioned)",
+      "icon": "logos:microsoft-azure",
+      "spec": { "engine": "doc", "ru_per_sec": 10000 },
+      "capacity": { "rest": 10000, "ws": 10000, "stream": 200 },
+      "latency": { "p50": 6, "p95": 15 },
+      "cost": { "cost_per_month_usd": 584 },
+      "notes": "$8/100 RU/s/mo. Multi-region adds more."
+    },
+    "database.postgres.flexible.d2s": {
+      "kind": "database",
+      "display_name": "Azure DB for PostgreSQL Flexible (D2s v3)",
+      "icon": "logos:postgresql",
+      "spec": { "vcpu": 2, "ram_gb": 8, "engine": "postgres" },
+      "capacity": { "rest": 3500, "ws": 500, "stream": 50 },
+      "latency": { "p50": 5, "p95": 14 },
+      "cost": { "cost_per_hour_usd": 0.176 }
+    },
+    "cache.azure-redis.basic.c1": {
+      "kind": "cache",
+      "display_name": "Azure Cache for Redis Basic C1",
+      "icon": "logos:redis",
+      "spec": { "ram_gb": 1 },
+      "capacity": { "rest": 50000, "ws": 30000, "stream": 1000 },
+      "latency": { "p50": 0.7, "p95": 1.7 },
+      "cost": { "cost_per_month_usd": 80 }
+    },
+    "cache.azure-redis.standard.c2": {
+      "kind": "cache",
+      "display_name": "Azure Cache for Redis Standard C2 (HA)",
+      "icon": "logos:redis",
+      "spec": { "ram_gb": 2.5 },
+      "capacity": { "rest": 80000, "ws": 50000, "stream": 1500 },
+      "latency": { "p50": 0.6, "p95": 1.5 },
+      "cost": { "cost_per_month_usd": 200 }
+    },
+    "lb.frontdoor.standard": {
+      "kind": "cdn",
+      "display_name": "Front Door Standard (CDN+WAF)",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 1000000000, "ws": 0 },
+      "latency": { "p50": 6, "p95": 18 },
+      "cost": { "cost_per_month_usd": 35 },
+      "notes": "$0.30/policy-mo, $0.022/10K req, $0.083/GB egress."
+    },
+    "lb.frontdoor.premium": {
+      "kind": "cdn",
+      "display_name": "Front Door Premium (CDN+WAF+private link)",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 1000000000 },
+      "latency": { "p50": 6, "p95": 18 },
+      "cost": { "cost_per_month_usd": 165 }
+    },
+    "lb.appgateway.waf-v2.medium": {
+      "kind": "lb",
+      "display_name": "Application Gateway WAF v2 medium",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 30000, "ws": 50000, "stream": 2000 },
+      "latency": { "p50": 4, "p95": 9 },
+      "cost": { "cost_per_month_usd": 246 },
+      "notes": "$0.36/hr fixed + capacity units."
+    },
+    "queue.servicebus.standard": {
+      "kind": "queue",
+      "display_name": "Service Bus Standard",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 1000 },
+      "latency": { "p50": 30, "p95": 150 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.00000008 }
+      },
+      "notes": "$0.05/1M ops + $10/mo base. Premium tier $670/mo for 1 MU."
+    },
+    "queue.eventgrid": {
+      "kind": "queue",
+      "display_name": "Event Grid",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 5000 },
+      "latency": { "p50": 100, "p95": 500 },
+      "cost": {
+        "cost_fn": { "model": "per_message", "rest": 0.0000006 }
+      },
+      "notes": "$0.60/1M ops. First 100K/mo free."
+    },
+    "stream.eventhubs.standard": {
+      "kind": "stream",
+      "display_name": "Event Hubs Standard (per TU)",
+      "icon": "logos:microsoft-azure",
+      "spec": { "throughput_units": 1 },
+      "capacity": { "stream": 1 },
+      "latency": { "p50": 50, "p95": 200 },
+      "cost": { "cost_per_month_usd": 22 },
+      "notes": "1 TU = 1 MB/s in / 2 MB/s out / 1000 events/s. $0.030/TU-hour + $0.028/1M events."
+    },
+    "storage.blob.hot": {
+      "kind": "storage",
+      "display_name": "Blob Storage (Hot)",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 20000, "stream": 1000 },
+      "latency": { "p50": 30, "p95": 100 },
+      "cost": {
+        "cost_fn": { "model": "per_request", "rest": 0.0000004 }
+      },
+      "notes": "$0.0184/GB-month. $0.004/10K read ops, $0.05/10K write ops."
+    },
+    "auth.aad-b2c": {
+      "kind": "auth",
+      "display_name": "Azure AD B2C",
+      "icon": "logos:microsoft-azure",
+      "capacity": { "rest": 10000 },
+      "latency": { "p50": 80, "p95": 300 },
+      "cost": { "cost_per_month_usd": 30 },
+      "notes": "First 50K MAU free. $0.00325/MAU after."
+    },
+    "monitoring.app-insights": {
+      "kind": "monitoring",
+      "display_name": "Application Insights",
+      "icon": "logos:microsoft-azure",
+      "cost": { "cost_per_month_usd": 35 },
+      "notes": "$2.30/GB ingested after first 5GB free."
+    },
+    "dns.azure-dns": {
+      "kind": "dns",
+      "display_name": "Azure DNS",
+      "icon": "logos:microsoft-azure",
+      "cost": { "cost_per_month_usd": 1 }
+    },
+    "secrets.keyvault": {
+      "kind": "secrets",
+      "display_name": "Key Vault",
+      "icon": "logos:microsoft-azure",
+      "cost": { "cost_per_month_usd": 1 },
+      "notes": "$0.03/10K secret ops. HSM-backed keys $1/key/mo."
+    }
+  }
+}
