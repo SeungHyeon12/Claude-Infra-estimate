@@ -345,6 +345,11 @@ OUT="${ESTIMATE_DIR}/${TS}.html"
 # (Use the Write tool to write the filled template to $OUT.)
 cp "$OUT" "${ESTIMATE_DIR}/latest.html"
 
+# Prune old reports — keep only the 5 most recent timestamped HTMLs.
+# (latest.html is preserved by name match: glob excludes it.)
+ls -1t "${ESTIMATE_DIR}"/2*.html 2>/dev/null | awk 'NR>5' \
+  | xargs -I{} rm -f {} 2>/dev/null || true
+
 # Restart static server on 11131 bound to this project's estimate dir.
 # Kill any old server (could belong to a different project) and start fresh.
 PID=$(lsof -ti tcp:11131 2>/dev/null || true)
