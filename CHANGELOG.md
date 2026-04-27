@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (v0.1.2)
+- Slider label "Target RPS" → "Target QPS / RPS / TPS" (the three are interchangeable; UI now matches `load_unit_equivalence`).
+- `mockup.html` regenerated from `template/base.html` + REST sample data (was hand-crafted and drifting). New file `mockup-ws.html` for the WebSocket chat demo with fan-out + hard-cap walls.
+- Two README screenshots: `docs/demo.png` (REST mode) and `docs/demo-ws.png` (WS chat with hardcap banners + ×N auto-scale visible).
+- New "Inputs you can use" section in README cross-checking what the slash command accepts: DAU / MAU / QPS / RPS / TPS / connections / MB/s, domain hints (social/ecom/chat/payments/SaaS), cloud + service pinning, WebSocket-only inputs (msg/sec/conn, fan-out).
+
+
 ### Fixed
 - Broken Iconify icons in catalogs (8 names that 404'd on the Iconify CDN). Mapped to working alternatives:
   - `logos:aws-elastic-load-balancing` → `logos:aws-elb`

@@ -413,7 +413,77 @@
   See docs/CATALOG.md for the data schema.
 -->
 <script id="estimate-data">
-window.ESTIMATE_DATA = {{ESTIMATE_DATA_JSON}};
+window.ESTIMATE_DATA = {
+  "meta": {
+    "workload": "ws",
+    "initialLoad": 100000,
+    "initialHit": 0.5,
+    "initialBurst": 1.0,
+    "initialMsgRate": 1.0,
+    "initialFanout": 50,
+    "contextDescription": "WebSocket chat — 100k concurrent connections, 1 msg/sec/conn, 50-user rooms (fanout=50). Demonstrates downstream amplification + max_connections hardcap on RDS / ElastiCache. Sliders are live."
+  },
+  "scenarios": {
+    "A": {
+      "label": "AWS — ALB sticky + EC2 m5.large × 4 + Redis pub/sub + RDS",
+      "cloud": "aws",
+      "flow": [
+        {"id":"alb","name":"ALB","spec":"L7 sticky","icon":"logos:aws-elb","iconFallback":"⚖️","cap":{"rest":100000,"ws":100000,"stream":5000},"p50":2,"p95":5,"costMo":22},
+        {"id":"compute","name":"EC2 m5.large × 4","spec":"8 vCPU","icon":"logos:aws-ec2","iconFallback":"🖥","cap":{"rest":12000,"ws":120000,"stream":400},"p50":5,"p95":15,"costMo":280,"limits":{"max_connections":260000,"scales_with_instances":true,"remediation":"Raise ulimit -n; net.core.somaxconn"}},
+        {"id":"cache","name":"ElastiCache Redis r6g.large","spec":"pub/sub","icon":"logos:aws-elasticache","iconFallback":"📦","cap":{"rest":100000,"ws":60000,"stream":2000},"p50":0.5,"p95":1.2,"costMo":146,"downstreamMsg":true,"limits":{"max_connections":65000,"scales_with_instances":false,"remediation":"Redis maxclients 65k. Enable Cluster mode for higher fan-in."}},
+        {"id":"db","name":"RDS Postgres r5.large","spec":"engine=postgres","icon":"logos:aws-rds","iconFallback":"🗄","cap":{"rest":2500,"ws":400,"stream":40},"p50":4,"p95":12,"costMo":182,"downstreamMsg":true,"splitMiss":true,"limits":{"max_connections":1700,"scales_with_instances":false,"remediation":"Add RDS Proxy / PgBouncer."}}
+      ],
+      "sideServices":[
+        {"name":"Route 53","icon":"logos:aws-route53","tooltip":"DNS"},
+        {"name":"CloudWatch","icon":"logos:aws-cloudwatch","tooltip":"Monitoring"}
+      ],
+      "recommendations":[
+        "Move Redis to <b>Cluster mode</b> (3 shards) → max_connections becomes 195k",
+        "Enable <b>RDS Proxy</b> (+$0.015/ACU-hr) → DB max_connections wall lifted",
+        "Sticky-session cookie at ALB adds <b>~$30/mo</b> in LCU charges at this scale"
+      ],
+      "fixedExtraCostMo": 7
+    },
+    "B": {
+      "label": "AWS Serverless WS — API Gateway WS + Lambda + DynamoDB",
+      "cloud": "aws",
+      "flow": [
+        {"id":"apigw","name":"API Gateway WS","spec":"WebSocket","icon":"logos:aws-api-gateway","iconFallback":"🛂","cap":{"rest":100000,"ws":100000,"stream":0},"p50":8,"p95":25,"costFn":"workload==='ws' ? Math.round(load*30*24*60*0.25/1e6) : 0"},
+        {"id":"lambda","name":"Lambda 256MB","spec":"per-message","icon":"logos:aws-lambda","iconFallback":"λ","cap":{"rest":50000,"ws":10000,"stream":200},"p50":30,"p95":100,"costFn":"workload==='ws' ? Math.round(load*0.5*30/1e3) : 0","downstreamMsg":true},
+        {"id":"db","name":"DynamoDB on-demand","spec":"connection state","icon":"logos:aws-dynamodb","iconFallback":"🗄","cap":{"rest":100000,"ws":100000,"stream":500},"p50":5,"p95":15,"costFn":"workload==='ws' ? Math.round(load*0.05*30) : 0","downstreamMsg":true}
+      ],
+      "sideServices":[
+        {"name":"CloudWatch","icon":"logos:aws-cloudwatch","tooltip":"Monitoring"}
+      ],
+      "recommendations":[
+        "API Gateway WS bills <b>$0.25/1M conn-min</b> — idle 100k conns ≈ $1k/mo, very cheap",
+        "Per-message Lambda invocation gets expensive at high msgRate × fanout",
+        "DynamoDB Streams for fan-out instead of Lambda direct broadcast — 60% cost cut"
+      ],
+      "fixedExtraCostMo": 5
+    },
+    "C": {
+      "label": "GCP — Cloud LB + GKE × 4 + Memorystore + Cloud SQL",
+      "cloud": "gcp",
+      "flow": [
+        {"id":"lb","name":"Cloud LB","spec":"L7 WS","icon":"logos:google-cloud","iconFallback":"⚖️","cap":{"rest":100000,"ws":100000,"stream":5000},"p50":2,"p95":5,"costMo":18},
+        {"id":"compute","name":"GKE × 4 nodes","spec":"n2-std-4","icon":"logos:kubernetes","iconFallback":"☸","cap":{"rest":24000,"ws":240000,"stream":800},"p50":5,"p95":14,"costMo":760,"limits":{"max_connections":260000,"scales_with_instances":true,"remediation":"Tune ulimit + sysctl on node pool"}},
+        {"id":"cache","name":"Memorystore Redis 5GB","spec":"std","icon":"logos:redis","iconFallback":"📦","cap":{"rest":80000,"ws":50000,"stream":1500},"p50":0.6,"p95":1.4,"costMo":120,"downstreamMsg":true,"limits":{"max_connections":65000,"scales_with_instances":false,"remediation":"Bump tier or shard channels."}},
+        {"id":"db","name":"Cloud SQL Postgres","spec":"db-n1-std-2","icon":"logos:postgresql","iconFallback":"🗄","cap":{"rest":3500,"ws":500,"stream":50},"p50":5,"p95":14,"costMo":182,"downstreamMsg":true,"splitMiss":true,"limits":{"max_connections":800,"scales_with_instances":false,"remediation":"Use Cloud SQL Auth Proxy + PgBouncer."}}
+      ],
+      "sideServices":[
+        {"name":"Cloud DNS","icon":"logos:google-cloud","tooltip":"DNS"}
+      ],
+      "recommendations":[
+        "GKE has roomier per-node FD limits than EC2 by default (~3× ws cap)",
+        "Memorystore <b>Standard tier</b> required for pub/sub HA — Basic doesn't replicate",
+        "Cloud SQL Postgres <b>800 max_connections</b> wall — pooler is mandatory at this load"
+      ],
+      "fixedExtraCostMo": 7
+    }
+  }
+}
+;
 </script>
 
 <script>
