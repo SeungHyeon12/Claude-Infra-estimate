@@ -5,9 +5,8 @@
 A `/estimate` slash command for [Claude Code](https://docs.claude.com/en/docs/claude-code) that generates an interactive HTML report comparing 2–4 candidate architectures.
 
 ![demo screenshot](docs/demo.png)
-<!-- TODO: add real screenshot -->
 
-**Live demo (no install):** [GitHub Pages link](#) — TODO
+**Live demo (no install):** open `mockup.html` in a browser — same UI, prefilled with sample data, no Claude Code required.
 
 ## What it does
 
