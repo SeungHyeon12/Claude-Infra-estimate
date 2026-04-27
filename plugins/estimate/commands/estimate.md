@@ -138,6 +138,33 @@ Echo the conversion in `meta.contextDescription`, e.g.:
 
 ## Procedure
 
+### 0. Precondition — verify plugin assets are present
+
+Before reading any catalog values, **verify the bundled assets are readable**.
+The plugin cache may be missing, partially populated, or stale (e.g., interrupted
+install, manual `rm -rf`, version mismatch). The command must fail loudly with a
+remediation step rather than fabricate sizes from nothing.
+
+Run this check first:
+
+```bash
+MISSING=()
+for f in catalog/aws.json catalog/gcp.json catalog/azure.json catalog/workloads.json template/base.html; do
+  [ -r "${CLAUDE_PLUGIN_ROOT}/$f" ] || MISSING+=("$f")
+done
+if [ ${#MISSING[@]} -gt 0 ]; then
+  echo "❌ Plugin assets missing under ${CLAUDE_PLUGIN_ROOT}:"
+  printf '   - %s\n' "${MISSING[@]}"
+  echo
+  echo "Reinstall: /plugin uninstall estimate@capacity-estimator && /plugin install estimate@capacity-estimator"
+  exit 1
+fi
+```
+
+If any file is missing, **stop the command and surface the message above to the
+user** — do not proceed with hardcoded fallback numbers or guess from training
+data. The catalog is the source of truth.
+
 ### 1. Load the catalog
 
 Read these files **from the plugin install dir** (`${CLAUDE_PLUGIN_ROOT}/`) and
@@ -299,9 +326,10 @@ Replace `{{ESTIMATE_DATA_JSON}}` with a JSON object of this shape:
 
 Save the filled HTML to `./.claude/estimates/{ISO-timestamp}.html` (in the
 **user's current working directory**, *not* the plugin install dir — output
-should live next to the project the user is sizing). Serve it via a tiny static
-HTTP server bound to `127.0.0.1:11131`, then open the URL in the user's default
-browser.
+should live next to the project the user is sizing). The report **MUST** then
+be served via a static HTTP server on `127.0.0.1:11131` and opened in the
+user's default browser. **Never** end the command with `file://` or with no
+browser open — the user expects to see the rendered page every run.
 
 **Why a server instead of `open <file>`?** Browsers restrict `file://` (clipboard
 share-link, future `fetch()`/POST hooks). `localhost` URLs avoid all of that and

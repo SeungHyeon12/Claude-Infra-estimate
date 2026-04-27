@@ -22,6 +22,8 @@ Given a free-form description of a workload + candidate architectures, it produc
 - p50 / p95 / p99 latency estimates
 - Monthly cost (broken down by component)
 - "Breaks at X RPS" — the load at which the first component saturates
+- **Auto scale-out on load** — drag the load slider higher and components that would saturate get an `×N` badge: capacity is multiplied, the extra `$/mo` is folded into the total, and util is re-derived at the scaled capacity. Hard caps that *don't* scale with instances (e.g., Postgres `max_connections`, Redis `maxclients`) are surfaced as a separate 🚧 banner — horizontal fan-out won't fix them.
+- **Bottleneck highlighted in red** — the component currently pinning the system gets a red border + glow once util > 70%, so you can see at a glance which layer is the constraint at the current load.
 - Sortable comparison table across all scenarios
 - Live sliders to play with RPS / cache-hit-rate / burst multiplier
 - WebSocket and Streaming workload modes (different inputs, different bottlenecks)
